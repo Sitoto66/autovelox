@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>VeloxAlert - Segnalazione Controlli Velocità</title>
     
-    <!-- Leaflet CSS -->
+    <!-- Leaflet CSS (Open Source - No API Key Needed) -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <!-- FontAwesome per Icone -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
@@ -89,6 +89,7 @@
             font-size: 13px;
             font-weight: 600;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+            cursor: pointer;
         }
 
         .status-dot {
@@ -322,14 +323,13 @@
             white-space: nowrap;
         }
 
-        /* Colori pulsanti segnalazione */
         .btn-report.fisso i { color: #f43f5e; }
         .btn-report.pattuglia i { color: #3b82f6; }
         .btn-report.tutor i { color: #a855f7; }
         .btn-report.etilometro i { color: #f59e0b; }
         .btn-report.semaforo i { color: #10b981; }
 
-        /* MODALE & LISTA SEGNALAZIONI */
+        /* MODALE GESTIONE SEGNALAZIONI */
         .modal {
             position: fixed;
             inset: 0;
@@ -550,23 +550,7 @@
             margin-top: 4px;
         }
 
-        /* BANNER WARNING HTTP */
-        .http-warning {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            background: #f59e0b;
-            color: #000;
-            font-size: 11px;
-            font-weight: 700;
-            text-align: center;
-            padding: 4px 8px;
-            z-index: 3000;
-            display: none;
-        }
-
-        /* PULSANTE AUDIO/AUDIO UNMUTE */
+        /* PROMPT ATTIVAZIONE AUDIO SINTETIZZATORE */
         .audio-prompt {
             position: absolute;
             top: 50%;
@@ -603,10 +587,6 @@
 </head>
 <body>
 
-    <div class="http-warning" id="httpWarning">
-        <i class="fas fa-exclamation-triangle"></i> Per il GPS Automatico Continuo carica questa web app su un link HTTPS!
-    </div>
-
     <div id="app-container">
         <!-- BARRA SUPERIORE -->
         <div class="top-bar">
@@ -630,7 +610,7 @@
             </div>
         </div>
 
-        <!-- ALLERTA PROSSIMITÀ (AVVISO DANGER) -->
+        <!-- ALLERTA PROSSIMITÀ -->
         <div class="alert-banner" id="alertBanner">
             <div class="alert-info">
                 <i class="fas fa-triangle-exclamation alert-icon"></i>
@@ -641,7 +621,7 @@
             </div>
         </div>
 
-        <!-- CONTROLLI MAPPA DESTRI -->
+        <!-- CONTROLLI MAPPA -->
         <div class="map-controls-right">
             <button class="btn-control active" id="btnAutoFollow" onclick="toggleAutoFollow()" title="Insegui Posizione">
                 <i class="fas fa-crosshairs"></i>
@@ -707,7 +687,7 @@
         </div>
     </div>
 
-    <!-- PROMPT ATTIVAZIONE AUDIO SINTETIZZATORE -->
+    <!-- PROMPT ATTIVAZIONE AUDIO -->
     <div class="audio-prompt" id="audioPrompt">
         <i class="fas fa-volume-high" style="font-size: 32px; color: var(--accent-blue);"></i>
         <div style="font-weight: 700;">Attiva Avvisi Sonori</div>
@@ -715,11 +695,10 @@
         <button class="btn-enable-audio" onclick="enableAudioContext()">ATTIVA AUDIO</button>
     </div>
 
-    <!-- Leaflet JS -->
+    <!-- Leaflet JS (Open Source - No API Key Needed) -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
     <script>
-        /* CONFIGURAZIONE E TIPI SEGNALAZIONI */
         const REPORT_TYPES = {
             fisso: { label: 'Autovelox Fisso', icon: 'fa-camera', color: '#f43f5e' },
             pattuglia: { label: 'Pattuglia Mobile', icon: 'fa-car-side', color: '#3b82f6' },
@@ -732,7 +711,7 @@
         let map;
         let userMarker;
         let userAccuracyCircle;
-        let userPos = { lat: 41.9028, lng: 12.4964 }; // Coordinate di default (Roma)
+        let userPos = { lat: 41.9028, lng: 12.4964 }; // Roma default
         let hasGpsFix = false;
         let autoFollow = true;
         let audioEnabled = false;
@@ -741,36 +720,28 @@
         let reportMarkers = {};
         let activeAlertId = null;
 
-        // Inizializzazione Applicazione
+        // Inizializzazione
         window.addEventListener('DOMContentLoaded', () => {
-            checkProtocol();
             initMap();
             loadReportsFromStorage();
             startGPSWatch();
             setupToneAudio();
         });
 
-        /* CONTROLLO PROTOCOLLO HTTPS */
-        function checkProtocol() {
-            if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-                document.getElementById('httpWarning').style.display = 'block';
-            }
-        }
-
-        /* INIZIALIZZAZIONE MAPPA LEAFLET */
+        /* INIZIALIZZAZIONE MAPPA LEAFLET (SENZA API KEY) */
         function initMap() {
             map = L.map('map', {
                 zoomControl: false,
                 attributionControl: false
             }).setView([userPos.lat, userPos.lng], 15);
 
-            // Layer Mappa Scuro Stamen/CartoDB Dark Matter
-            L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+            // Mappa OpenStreetMap Voyager (Totalmente Gratuita, No API Key Required)
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 maxZoom: 19,
-                subdomains: 'abcd'
+                subdomains: 'abc'
             }).addTo(map);
 
-            // Icona Custom per l'Utente
+            // Icona Custom Posizione Utente
             const userIcon = L.divIcon({
                 className: 'custom-user-icon',
                 html: `<div style="
@@ -794,13 +765,12 @@
                 weight: 1
             }).addTo(map);
 
-            // Se l'utente trascina la mappa, disattiva l'Auto-Follow
             map.on('dragstart', () => {
                 setAutoFollow(false);
             });
         }
 
-        /* TRACCIAMENTO GPS CONTINUO HTTPS */
+        /* TRACCIAMENTO GPS CONTINUO */
         function startGPSWatch() {
             if (!("geolocation" in navigator)) {
                 updateStatus('no-gps', 'GPS Non Supportato');
@@ -823,14 +793,12 @@
                         lng: pos.coords.longitude
                     };
 
-                    // Calcolo ed aggiornamento Velocità (m/s -> km/h)
                     let speed = 0;
                     if (pos.coords.speed !== null && pos.coords.speed !== undefined && !isNaN(pos.coords.speed)) {
                         speed = Math.round(pos.coords.speed * 3.6);
                     }
                     document.getElementById('speedDisplay').innerText = speed;
 
-                    // Aggiorna marker e cerchio sulla mappa
                     userMarker.setLatLng([userPos.lat, userPos.lng]);
                     userAccuracyCircle.setLatLng([userPos.lat, userPos.lng]);
                     if (pos.coords.accuracy) {
@@ -858,7 +826,6 @@
             startGPSWatch();
         }
 
-        /* AGGIORNAMENTO BADGE STATO GPS */
         function updateStatus(type, text) {
             const dot = document.getElementById('statusDot');
             const label = document.getElementById('statusText');
@@ -873,11 +840,10 @@
             label.innerText = text;
         }
 
-        /* GESTIONE SEGNALAZIONI (AGGIUNTA) */
+        /* GESTIONE SEGNALAZIONI & RIMOZIONE */
         function addReport(type) {
             if (!REPORT_TYPES[type]) return;
 
-            // Feedback aptico (vibrazione) se disponibile su cellulare
             if (navigator.vibrate) navigator.vibrate([80, 50, 80]);
 
             const report = {
@@ -895,13 +861,11 @@
             renderReportMarker(report);
             updateReportCountBadge();
 
-            // Svolazza/Centra sulla segnalazione
             if (autoFollow) {
                 map.panTo([report.lat, report.lng]);
             }
         }
 
-        /* RENDER MARKER SULLA MAPPA */
         function renderReportMarker(report) {
             const config = REPORT_TYPES[report.type] || REPORT_TYPES.fisso;
 
@@ -932,7 +896,6 @@
 
             const marker = L.marker([report.lat, report.lng], { icon: icon }).addTo(map);
 
-            // Popup di interazione e rimozione rapida
             const popupContent = document.createElement('div');
             popupContent.className = 'popup-card';
             popupContent.innerHTML = `
@@ -957,21 +920,16 @@
             reportMarkers[report.id] = marker;
         }
 
-        /* RIMOZIONE ED ELIMINAZIONE SEGNALAZIONE IN MODO DIVERSIFICATO */
+        /* FUNZIONE DI RIMOZIONE SEGNALAZIONE */
         function deleteReport(id) {
-            // 1. Rimuovi Marker dalla Mappa Leaflet
             if (reportMarkers[id]) {
                 map.removeLayer(reportMarkers[id]);
                 delete reportMarkers[id];
             }
 
-            // 2. Rimuovi dall'array principale dei dati
             reports = reports.filter(r => r.id !== id);
-
-            // 3. Salva la lista aggiornata in LocalStorage
             saveReportsToStorage();
 
-            // 4. Aggiorna Modale/Lista ed UI
             updateReportCountBadge();
             renderReportsListInModal();
             checkProximityAlerts();
@@ -979,7 +937,6 @@
             if (navigator.vibrate) navigator.vibrate(50);
         }
 
-        /* VOTAZIONE CONFERMA / RIMOZIONE AUTOMATICA */
         function voteReport(id, isPositive) {
             const report = reports.find(r => r.id === id);
             if (!report) return;
@@ -988,7 +945,6 @@
                 report.confirmations++;
             } else {
                 report.rejections++;
-                // Se i feedback negativi superano quelli positivi, elimina la segnalazione
                 if (report.rejections >= 2 || (report.rejections - report.confirmations) >= 1) {
                     deleteReport(id);
                     return;
@@ -1001,26 +957,21 @@
             }
         }
 
-        /* CANCELA TUTTE LE SEGNALAZIONI (RESET COMPLETO) */
         function clearAllReports() {
             if (reports.length === 0) return;
 
-            if (confirm("Sei sicuro di voler cancellare tutte le segnalazioni presenti sulla mappa?")) {
-                // Rimuovi tutti i layer
-                Object.keys(reportMarkers).forEach(id => {
-                    map.removeLayer(reportMarkers[id]);
-                });
-                reportMarkers = {};
-                reports = [];
+            Object.keys(reportMarkers).forEach(id => {
+                map.removeLayer(reportMarkers[id]);
+            });
+            reportMarkers = {};
+            reports = [];
 
-                saveReportsToStorage();
-                updateReportCountBadge();
-                renderReportsListInModal();
-                checkProximityAlerts();
-            }
+            saveReportsToStorage();
+            updateReportCountBadge();
+            renderReportsListInModal();
+            checkProximityAlerts();
         }
 
-        /* STORAGE LOCALE (LOCALSTORAGE) */
         function saveReportsToStorage() {
             localStorage.setItem('velox_alert_reports', JSON.stringify(reports));
         }
@@ -1043,7 +994,7 @@
             document.getElementById('reportCountBadge').innerText = `${reports.length} Attive`;
         }
 
-        /* SISTEMA DI ALLERTA E AVVISO PROSSIMITÀ VELOX */
+        /* ALLERTA E AVVISI ACUSTICI */
         function checkProximityAlerts() {
             if (reports.length === 0) {
                 hideAlert();
@@ -1061,12 +1012,10 @@
                 }
             });
 
-            // Avviso attivo entro un raggio di 500 metri
             if (minDistance <= 500 && nearestReport) {
                 const config = REPORT_TYPES[nearestReport.type] || REPORT_TYPES.fisso;
                 showAlert(config.label, `A circa ${Math.round(minDistance)} metri dalla tua posizione`);
                 
-                // Emetti suono acustico di avviso
                 if (activeAlertId !== nearestReport.id) {
                     activeAlertId = nearestReport.id;
                     playAlertSound();
@@ -1089,9 +1038,8 @@
             banner.classList.remove('active');
         }
 
-        /* CALCOLO DISTANZA IN METRI (FORMULA HAVERSINE) */
         function calculateDistance(lat1, lon1, lat2, lon2) {
-            const R = 6371e3; // Raggio terrestre in metri
+            const R = 6371e3;
             const φ1 = lat1 * Math.PI / 180;
             const φ2 = lat2 * Math.PI / 180;
             const Δφ = (lat2 - lat1) * Math.PI / 180;
@@ -1105,7 +1053,6 @@
             return R * c;
         }
 
-        /* MODALE LISTA SEGNALAZIONI ED ELIMINAZIONE MANUAL */
         function openManagerModal() {
             renderReportsListInModal();
             document.getElementById('managerModal').classList.add('open');
@@ -1148,7 +1095,6 @@
             });
         }
 
-        /* CONTROLLO INSEGUIMENTO AUTOMATICO (AUTO-FOLLOW) */
         function toggleAutoFollow() {
             setAutoFollow(!autoFollow);
         }
@@ -1168,7 +1114,6 @@
             setAutoFollow(true);
         }
 
-        /* AUDIO E ALLARMI ACUSTICI CON TONE.JS */
         function setupToneAudio() {
             try {
                 audioSynth = new Tone.Synth({
