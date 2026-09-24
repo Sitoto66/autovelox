@@ -1,1125 +1,1211 @@
 <!DOCTYPE html>
-<html lang="it" class="dark">
+<html lang="it">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>VeloxAlert - Controlli Velocità HTTPS</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>VeloxAlert - Segnalazione Controlli Velocità</title>
     
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        darkbg: '#090d16',
-                        darkcard: '#161f30',
-                        accent: '#2563eb',
-                        danger: '#ef4444',
-                        warning: '#f59e0b',
-                        success: '#10b981',
-                        purple: '#8b5cf6',
-                        cyan: '#06b6d4'
-                    }
-                }
-            }
-        }
-    </script>
-    
-    <!-- Leaflet CSS & JS -->
+    <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    
-    <!-- FontAwesome Icons -->
+    <!-- FontAwesome per Icone -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
-    
-    <!-- Tone.js for synth alerts -->
+    <!-- Tone.js per Allarmi Sonori Sintetizzati -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
 
-    <!-- Google Fonts Inter -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-
     <style>
-        body {
-            font-family: 'Inter', sans-serif;
-            touch-action: manipulation;
+        :root {
+            --bg-dark: #121824;
+            --card-bg: rgba(26, 34, 52, 0.92);
+            --accent-blue: #2563eb;
+            --accent-red: #ef4444;
+            --accent-green: #10b981;
+            --accent-amber: #f59e0b;
+            --text-main: #f8fafc;
+            --text-sub: #94a3b8;
+            --safe-area-top: env(safe-area-inset-top, 0px);
+            --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
             user-select: none;
-            -webkit-tap-highlight-color: transparent;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+        }
+
+        body, html {
+            width: 100%;
+            height: 100%;
             overflow: hidden;
-            background-color: #090d16;
-            color: #f8fafc;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
         }
 
+        #app-container {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+
+        /* MAPPA LEAFLET */
         #map {
-            height: 100vh;
-            width: 100vw;
-            z-index: 0;
-            background: #090d16;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            background: #0f172a;
         }
 
-        /* Dark mode map tiles styling */
-        .dark-tiles .leaflet-tile {
-            filter: brightness(0.65) invert(1) contrast(2.6) hue-rotate(200deg) saturate(0.3) brightness(0.75);
+        /* BARRA SUPERIORE DI STATO ED INFO */
+        .top-bar {
+            position: absolute;
+            top: calc(12px + var(--safe-area-top));
+            left: 12px;
+            right: 12px;
+            z-index: 1000;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            pointer-events: none;
         }
 
-        .custom-marker-icon {
+        .top-bar > * {
+            pointer-events: auto;
+        }
+
+        .status-badge {
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 14px;
+            border-radius: 30px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: var(--accent-amber);
+            box-shadow: 0 0 8px var(--accent-amber);
+        }
+
+        .status-dot.active {
+            background-color: var(--accent-green);
+            box-shadow: 0 0 10px var(--accent-green);
+            animation: pulse-green 1.5s infinite;
+        }
+
+        .status-dot.error {
+            background-color: var(--accent-red);
+            box-shadow: 0 0 10px var(--accent-red);
+        }
+
+        @keyframes pulse-green {
+            0% { transform: scale(0.95); opacity: 0.8; }
+            50% { transform: scale(1.15); opacity: 1; }
+            100% { transform: scale(0.95); opacity: 0.8; }
+        }
+
+        .speedometer-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 6px 14px;
+            border-radius: 20px;
+            display: flex;
+            align-items: baseline;
+            gap: 4px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+        }
+
+        .speed-val {
+            font-size: 24px;
+            font-weight: 800;
+            color: #fff;
+            font-family: monospace;
+        }
+
+        .speed-unit {
+            font-size: 10px;
+            font-weight: 600;
+            color: var(--text-sub);
+        }
+
+        .top-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-icon {
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--text-main);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 16px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            transition: all 0.2s ease;
+        }
+
+        .btn-icon:active {
+            transform: scale(0.92);
+        }
+
+        /* NOTIFICA AVVISO PROSSIMITÀ */
+        .alert-banner {
+            position: absolute;
+            top: calc(70px + var(--safe-area-top));
+            left: 12px;
+            right: 12px;
+            z-index: 1000;
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            color: white;
+            padding: 14px 18px;
+            border-radius: 16px;
+            display: none;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 10px 25px rgba(239, 68, 68, 0.5);
+            animation: bounceIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .alert-banner.active {
+            display: flex;
+        }
+
+        .alert-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .alert-icon {
+            font-size: 24px;
+            animation: blink 0.8s infinite alternate;
+        }
+
+        .alert-text-title {
+            font-weight: 700;
+            font-size: 15px;
+        }
+
+        .alert-text-sub {
+            font-size: 12px;
+            opacity: 0.9;
+        }
+
+        @keyframes blink {
+            from { opacity: 1; }
+            to { opacity: 0.3; }
+        }
+
+        @keyframes bounceIn {
+            from { transform: translateY(-20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        /* CONTROLLI SUL LATO DESTRO DELLA MAPPA */
+        .map-controls-right {
+            position: absolute;
+            right: 12px;
+            bottom: calc(180px + var(--safe-area-bottom));
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .btn-control {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 18px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+            transition: all 0.2s;
+        }
+
+        .btn-control.active {
+            background: var(--accent-blue);
+            border-color: #60a5fa;
+            box-shadow: 0 0 15px rgba(37, 99, 235, 0.6);
+        }
+
+        /* PANNELLO SEGNALAZIONI IN BASSO */
+        .bottom-panel {
+            position: absolute;
+            bottom: calc(12px + var(--safe-area-bottom));
+            left: 12px;
+            right: 12px;
+            z-index: 1000;
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 24px;
+            padding: 16px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            padding: 0 4px;
+        }
+
+        .panel-title {
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: var(--text-sub);
+        }
+
+        .report-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+        }
+
+        .btn-report {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 10px 4px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 16px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-report:active {
+            transform: scale(0.94);
+            background: rgba(255, 255, 255, 0.12);
+        }
+
+        .btn-report i {
+            font-size: 20px;
+        }
+
+        .btn-report span {
+            font-size: 10px;
+            font-weight: 600;
+            text-align: center;
+            white-space: nowrap;
+        }
+
+        /* Colori pulsanti segnalazione */
+        .btn-report.fisso i { color: #f43f5e; }
+        .btn-report.pattuglia i { color: #3b82f6; }
+        .btn-report.tutor i { color: #a855f7; }
+        .btn-report.etilometro i { color: #f59e0b; }
+        .btn-report.semaforo i { color: #10b981; }
+
+        /* MODALE & LISTA SEGNALAZIONI */
+        .modal {
+            position: fixed;
+            inset: 0;
+            z-index: 2000;
+            background: rgba(10, 15, 26, 0.85);
+            backdrop-filter: blur(12px);
+            display: none;
+            justify-content: center;
+            align-items: flex-end;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .modal.open {
+            display: flex;
+            opacity: 1;
+        }
+
+        .modal-content {
+            width: 100%;
+            max-width: 500px;
+            max-height: 85vh;
+            background: #1e293b;
+            border-top-left-radius: 28px;
+            border-top-right-radius: 28px;
+            padding: 20px 18px calc(20px + var(--safe-area-bottom));
+            box-shadow: 0 -10px 30px rgba(0,0,0,0.5);
+            overflow-y: auto;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .modal-title {
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        .btn-close {
+            background: rgba(255,255,255,0.1);
+            border: none;
+            color: white;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            border-radius: 50%;
-            box-shadow: 0 4px 14px rgba(0,0,0,0.6);
-            border: 2px solid white;
+            cursor: pointer;
+        }
+
+        .reports-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
+        .report-item {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 14px;
+            padding: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .report-item-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .report-item-icon {
+            width: 38px;
+            height: 38px;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.08);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        .report-item-title {
+            font-weight: 600;
+            font-size: 14px;
+            margin-bottom: 2px;
+        }
+
+        .report-item-sub {
+            font-size: 11px;
+            color: var(--text-sub);
+        }
+
+        .btn-delete-report {
+            background: rgba(239, 68, 68, 0.2);
+            border: 1px solid rgba(239, 68, 68, 0.4);
+            color: #fca5a5;
+            padding: 8px 12px;
+            border-radius: 10px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-delete-report:active {
+            background: rgba(239, 68, 68, 0.4);
+        }
+
+        .btn-clear-all {
+            width: 100%;
+            background: linear-gradient(135deg, #ef4444, #dc2626);
             color: white;
-            transition: transform 0.2s ease;
+            border: none;
+            padding: 14px;
+            border-radius: 14px;
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
         }
 
-        .custom-marker-icon:active {
-            transform: scale(1.2);
-        }
-
-        .pulse-animation {
-            box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
-            animation: pulse-red 1.8s infinite;
-        }
-
-        @keyframes pulse-red {
-            0% {
-                transform: scale(0.95);
-                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
-            }
-            70% {
-                transform: scale(1.05);
-                box-shadow: 0 0 0 14px rgba(239, 68, 68, 0);
-            }
-            100% {
-                transform: scale(0.95);
-                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
-            }
-        }
-
+        /* CUSTOM LEAFLET POPUP STYLE */
         .leaflet-popup-content-wrapper {
-            background-color: #161f30 !important;
+            background: #1e293b !important;
             color: #f8fafc !important;
-            border-radius: 18px !important;
+            border-radius: 16px !important;
             padding: 4px !important;
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.7) !important;
-            border: 1px solid #334155;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5) !important;
+            border: 1px solid rgba(255,255,255,0.1) !important;
         }
+
         .leaflet-popup-tip {
-            background-color: #161f30 !important;
+            background: #1e293b !important;
         }
 
-        .panel-slide-up {
-            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        .popup-card {
+            padding: 8px;
+            text-align: center;
+            min-width: 180px;
         }
 
-        .no-scrollbar::-webkit-scrollbar {
+        .popup-title {
+            font-weight: 700;
+            font-size: 15px;
+            margin-bottom: 4px;
+        }
+
+        .popup-time {
+            font-size: 11px;
+            color: #94a3b8;
+            margin-bottom: 12px;
+        }
+
+        .popup-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .popup-vote-box {
+            display: flex;
+            gap: 6px;
+        }
+
+        .btn-popup-vote {
+            flex: 1;
+            padding: 6px;
+            border-radius: 8px;
+            border: none;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+        }
+
+        .btn-popup-vote.yes {
+            background: rgba(16, 185, 129, 0.2);
+            color: #34d399;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .btn-popup-vote.no {
+            background: rgba(245, 158, 11, 0.2);
+            color: #fbbf24;
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+        .btn-popup-delete {
+            width: 100%;
+            padding: 8px;
+            background: rgba(239, 68, 68, 0.2);
+            color: #fca5a5;
+            border: 1px solid rgba(239, 68, 68, 0.4);
+            border-radius: 8px;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            margin-top: 4px;
+        }
+
+        /* BANNER WARNING HTTP */
+        .http-warning {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: #f59e0b;
+            color: #000;
+            font-size: 11px;
+            font-weight: 700;
+            text-align: center;
+            padding: 4px 8px;
+            z-index: 3000;
             display: none;
         }
-        .no-scrollbar {
-            -ms-overflow-style: none;
-            scrollbar-width: none;
+
+        /* PULSANTE AUDIO/AUDIO UNMUTE */
+        .audio-prompt {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 2500;
+            background: rgba(15, 23, 42, 0.95);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 20px;
+            padding: 24px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            max-width: 280px;
         }
 
-        .heading-arrow {
-            transition: transform 0.3s ease;
+        .audio-prompt.active {
+            display: flex;
+        }
+
+        .btn-enable-audio {
+            background: var(--accent-blue);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 12px;
+            font-weight: 700;
+            cursor: pointer;
         }
     </style>
 </head>
-<body class="bg-darkbg text-slate-100 flex flex-col h-screen overflow-hidden">
+<body>
 
-    <!-- Top Header Overlay -->
-    <header class="absolute top-0 left-0 right-0 z-10 p-3 flex justify-between items-center bg-gradient-to-b from-slate-950/90 via-slate-950/40 to-transparent pointer-events-none">
-        <!-- GPS Status Badge -->
-        <div onclick="openGpsHelpModal()" class="flex items-center space-x-2 pointer-events-auto bg-slate-900/90 backdrop-blur-md px-3.5 py-2 rounded-full border border-slate-700/60 shadow-lg cursor-pointer hover:bg-slate-800 transition">
-            <div class="w-3 h-3 rounded-full bg-amber-500 animate-pulse" id="gps-status-dot"></div>
-            <div class="flex flex-col">
-                <span class="text-[11px] font-bold tracking-wide text-slate-200" id="gps-status-text">Avvio GPS HTTPS...</span>
-                <span class="text-[9px] font-medium text-slate-400" id="gps-accuracy-text">In attesa di coordinate</span>
-            </div>
-            <i class="fas fa-satellite text-xs text-slate-400 ml-1"></i>
-        </div>
-
-        <div class="flex items-center space-x-2 pointer-events-auto">
-            <!-- Audio Voice & Warning Toggle Button -->
-            <button id="btn-toggle-audio" onclick="toggleAudio()" class="w-10 h-10 bg-slate-900/90 backdrop-blur-md border border-slate-700/60 rounded-full flex items-center justify-center text-slate-200 shadow-lg active:scale-95 transition">
-                <i class="fas fa-volume-up text-base text-emerald-400" id="audio-icon"></i>
-            </button>
-            <!-- Report List Modal Toggle -->
-            <button onclick="toggleListModal()" class="w-10 h-10 bg-slate-900/90 backdrop-blur-md border border-slate-700/60 rounded-full flex items-center justify-center text-slate-200 shadow-lg active:scale-95 transition relative">
-                <i class="fas fa-list-ul text-base text-accent"></i>
-                <span id="badge-count" class="absolute -top-1 -right-1 bg-danger text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center border-2 border-slate-900">0</span>
-            </button>
-        </div>
-    </header>
-
-    <!-- HTTP Security Warning Banner (shown only if NOT on HTTPS) -->
-    <div id="http-warning-banner" class="absolute top-16 left-3 right-3 z-20 bg-amber-500/95 backdrop-blur-md text-slate-950 p-3 rounded-2xl shadow-2xl border border-amber-300/50 flex items-start justify-between transition-all transform -translate-y-48 duration-300">
-        <div class="flex items-start space-x-3">
-            <div class="w-8 h-8 rounded-xl bg-slate-950/10 flex items-center justify-center text-slate-950 text-base font-bold flex-shrink-0 mt-0.5">
-                <i class="fas fa-lock-open"></i>
-            </div>
-            <div>
-                <h4 class="text-xs font-bold leading-tight uppercase tracking-wider text-slate-900">Connessione Non Sicura (HTTP)</h4>
-                <p class="text-[11px] font-medium leading-snug mt-0.5 text-slate-900/90">
-                    Il GPS ad alta precisione in background richiede un protocollo <b>HTTPS</b>. Pubblica questa app su HTTPS (GitHub Pages/Netlify) per il tracciamento continuo nativo!
-                </p>
-            </div>
-        </div>
-        <button onclick="dismissHttpBanner()" class="text-slate-900/70 hover:text-slate-950 p-1">
-            <i class="fas fa-xmark text-base"></i>
-        </button>
+    <div class="http-warning" id="httpWarning">
+        <i class="fas fa-exclamation-triangle"></i> Per il GPS Automatico Continuo carica questa web app su un link HTTPS!
     </div>
 
-    <!-- Proximity Alert Banner -->
-    <div id="proximity-alert" class="absolute top-16 left-3 right-3 z-20 bg-danger/95 backdrop-blur-md text-white p-3.5 rounded-2xl shadow-2xl border-2 border-red-400 flex items-center justify-between transition-all transform -translate-y-48 duration-300">
-        <div class="flex items-center space-x-3">
-            <div class="w-11 h-11 rounded-2xl bg-white/20 flex items-center justify-center text-xl animate-bounce">
-                <i class="fas fa-triangle-exclamation text-amber-300"></i>
+    <div id="app-container">
+        <!-- BARRA SUPERIORE -->
+        <div class="top-bar">
+            <div class="status-badge" id="statusBadge" onclick="requestGPSPosition()">
+                <div class="status-dot" id="statusDot"></div>
+                <span id="statusText">Ricerca GPS...</span>
             </div>
-            <div>
-                <p class="text-[10px] uppercase tracking-wider font-black text-red-100">ALLARME VELOCITÀ VICINO</p>
-                <h4 class="text-sm font-bold leading-tight" id="alert-title">Autovelox Fisso Vicino!</h4>
-                <p class="text-xs text-red-100/90 font-medium" id="alert-dist">Distanza: 350m</p>
+
+            <div class="speedometer-card">
+                <span class="speed-val" id="speedDisplay">0</span>
+                <span class="speed-unit">KM/H</span>
             </div>
-        </div>
-        <button onclick="dismissAlert()" class="bg-black/20 hover:bg-black/30 p-2 rounded-xl text-white">
-            <i class="fas fa-xmark text-lg"></i>
-        </button>
-    </div>
 
-    <!-- Digital Speedometer HUD (Top Center / Overlay) -->
-    <div class="absolute top-16 left-1/2 transform -translate-x-1/2 z-10 pointer-events-none">
-        <div class="bg-slate-900/90 backdrop-blur-xl border border-slate-700/70 px-4 py-2 rounded-2xl shadow-2xl flex items-center space-x-3 text-center pointer-events-auto">
-            <div>
-                <div class="text-2xl font-black tracking-tight text-white leading-none" id="speedometer-value">0</div>
-                <div class="text-[9px] font-extrabold uppercase text-slate-400">km/h</div>
-            </div>
-            <div class="h-8 w-px bg-slate-700/80"></div>
-            <div class="flex flex-col items-center justify-center">
-                <div class="w-6 h-6 rounded-full bg-slate-800 flex items-center justify-center text-accent text-xs">
-                    <i class="fas fa-location-arrow heading-arrow" id="compass-arrow"></i>
-                </div>
-                <span class="text-[8px] font-bold text-slate-400 mt-0.5" id="compass-text">N</span>
-            </div>
-        </div>
-    </div>
-
-    <!-- Map Action Floating Buttons -->
-    <div class="absolute right-4 bottom-56 z-10 flex flex-col space-y-3">
-        <!-- Auto-Follow Mode Toggle -->
-        <button id="btn-autofollow" onclick="toggleAutoFollow()" title="Insegui Posizione" class="w-12 h-12 bg-slate-900/90 backdrop-blur-md border border-slate-700/70 text-slate-100 rounded-2xl flex items-center justify-center shadow-2xl active:scale-95 transition">
-            <i class="fas fa-crosshairs text-lg text-emerald-400" id="autofollow-icon"></i>
-        </button>
-
-        <!-- Change Map Dark/Light Theme -->
-        <button onclick="toggleMapTheme()" title="Cambia Tema Mappa" class="w-12 h-12 bg-slate-900/90 backdrop-blur-md border border-slate-700/70 text-slate-100 rounded-2xl flex items-center justify-center shadow-2xl active:scale-95 transition">
-            <i class="fas fa-moon text-lg text-yellow-400" id="theme-icon"></i>
-        </button>
-    </div>
-
-    <!-- Map Canvas Container -->
-    <div id="map"></div>
-
-    <!-- Bottom Quick Action Bar -->
-    <div class="absolute bottom-0 left-0 right-0 z-10 p-3 bg-gradient-to-t from-slate-950 via-slate-950/95 to-transparent pt-6">
-        <div class="bg-slate-900/95 backdrop-blur-xl border border-slate-800 rounded-3xl p-3 shadow-2xl max-w-md mx-auto">
-            
-            <!-- Quick GPS Report Trigger -->
-            <div class="flex justify-between items-center mb-2 px-1">
-                <div class="flex items-center space-x-1.5">
-                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
-                    <p class="text-[11px] font-black tracking-wider text-slate-300 uppercase">
-                        Segnala nelle tue coordinate GPS
-                    </p>
-                </div>
-                <button onclick="recenterMap()" class="text-[10px] text-accent hover:underline font-bold flex items-center space-x-1">
-                    <i class="fas fa-location-crosshairs"></i>
-                    <span>Centra Mappa</span>
+            <div class="top-actions">
+                <button class="btn-icon" id="btnAudio" onclick="toggleAudio()" title="Audio Allarmi">
+                    <i class="fas fa-volume-up" id="audioIcon"></i>
                 </button>
+                <button class="btn-icon" onclick="openManagerModal()" title="Gestisci Segnalazioni">
+                    <i class="fas fa-bars"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- ALLERTA PROSSIMITÀ (AVVISO DANGER) -->
+        <div class="alert-banner" id="alertBanner">
+            <div class="alert-info">
+                <i class="fas fa-triangle-exclamation alert-icon"></i>
+                <div>
+                    <div class="alert-text-title" id="alertTitle">ATTENZIONE! CONTROLLO VICINO</div>
+                    <div class="alert-text-sub" id="alertSub">Autovelox a circa 300 metri</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CONTROLLI MAPPA DESTRI -->
+        <div class="map-controls-right">
+            <button class="btn-control active" id="btnAutoFollow" onclick="toggleAutoFollow()" title="Insegui Posizione">
+                <i class="fas fa-crosshairs"></i>
+            </button>
+            <button class="btn-control" onclick="recenterMap()" title="Centra Mappa">
+                <i class="fas fa-location-arrow"></i>
+            </button>
+        </div>
+
+        <!-- MAPPA LEAFLET -->
+        <div id="map"></div>
+
+        <!-- PANNELLO SEGNALAZIONI RAPIDE -->
+        <div class="bottom-panel">
+            <div class="panel-header">
+                <span class="panel-title">SEGNALA IN QUESTA POSIZIONE</span>
+                <span class="panel-title" style="color: var(--accent-blue);" id="reportCountBadge">0 Attive</span>
+            </div>
+            <div class="report-grid">
+                <button class="btn-report fisso" onclick="addReport('fisso')">
+                    <i class="fas fa-camera"></i>
+                    <span>Fisso</span>
+                </button>
+                <button class="btn-report pattuglia" onclick="addReport('pattuglia')">
+                    <i class="fas fa-car-side"></i>
+                    <span>Pattuglia</span>
+                </button>
+                <button class="btn-report tutor" onclick="addReport('tutor')">
+                    <i class="fas fa-route"></i>
+                    <span>Tutor</span>
+                </button>
+                <button class="btn-report etilometro" onclick="addReport('etilometro')">
+                    <i class="fas fa-wine-bottle"></i>
+                    <span>Alcoltest</span>
+                </button>
+                <button class="btn-report semaforo" onclick="addReport('semaforo')">
+                    <i class="fas fa-traffic-light"></i>
+                    <span>Semaforo</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODALE GESTIONE E RIMOZIONE SEGNALAZIONI -->
+    <div class="modal" id="managerModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">Gestione Segnalazioni</div>
+                <button class="btn-close" onclick="closeManagerModal()"><i class="fas fa-times"></i></button>
             </div>
             
-            <!-- Report Type Buttons -->
-            <div class="grid grid-cols-5 gap-1.5">
-                <!-- Autovelox Fisso -->
-                <button onclick="openReportModal('fisso')" class="flex flex-col items-center justify-center p-2 rounded-2xl bg-slate-800/80 hover:bg-slate-700/80 active:bg-red-500/20 active:border-red-500 border border-slate-700/50 transition">
-                    <div class="w-9 h-9 rounded-xl bg-danger/20 border border-danger/40 flex items-center justify-center text-danger mb-1 shadow-sm">
-                        <i class="fas fa-camera text-sm"></i>
-                    </div>
-                    <span class="text-[9px] font-extrabold text-slate-200">Fisso</span>
-                </button>
+            <p style="font-size: 12px; color: var(--text-sub); margin-bottom: 12px;">
+                Puoi rimuovere individualmente qualsiasi segnalazione presente sulla mappa o svuotare l'intero database locale.
+            </p>
 
-                <!-- Pattuglia / Velox Mobile -->
-                <button onclick="openReportModal('mobile')" class="flex flex-col items-center justify-center p-2 rounded-2xl bg-slate-800/80 hover:bg-slate-700/80 active:bg-amber-500/20 active:border-amber-500 border border-slate-700/50 transition">
-                    <div class="w-9 h-9 rounded-xl bg-warning/20 border border-warning/40 flex items-center justify-center text-warning mb-1 shadow-sm">
-                        <i class="fas fa-car-on text-sm"></i>
-                    </div>
-                    <span class="text-[9px] font-extrabold text-slate-200">Pattuglia</span>
-                </button>
-
-                <!-- Tutor / Tratta -->
-                <button onclick="openReportModal('tutor')" class="flex flex-col items-center justify-center p-2 rounded-2xl bg-slate-800/80 hover:bg-slate-700/80 active:bg-blue-500/20 active:border-blue-500 border border-slate-700/50 transition">
-                    <div class="w-9 h-9 rounded-xl bg-accent/20 border border-accent/40 flex items-center justify-center text-accent mb-1 shadow-sm">
-                        <i class="fas fa-road text-sm"></i>
-                    </div>
-                    <span class="text-[9px] font-extrabold text-slate-200">Tutor</span>
-                </button>
-
-                <!-- Etilometro -->
-                <button onclick="openReportModal('etilometro')" class="flex flex-col items-center justify-center p-2 rounded-2xl bg-slate-800/80 hover:bg-slate-700/80 active:bg-purple-500/20 active:border-purple-500 border border-slate-700/50 transition">
-                    <div class="w-9 h-9 rounded-xl bg-purple/20 border border-purple/40 flex items-center justify-center text-purple mb-1 shadow-sm">
-                        <i class="fas fa-wine-bottle text-sm"></i>
-                    </div>
-                    <span class="text-[9px] font-extrabold text-slate-200">Etilometro</span>
-                </button>
-
-                <!-- Telecamera Semaforo -->
-                <button onclick="openReportModal('semaforo')" class="flex flex-col items-center justify-center p-2 rounded-2xl bg-slate-800/80 hover:bg-slate-700/80 active:bg-cyan-500/20 active:border-cyan-500 border border-slate-700/50 transition">
-                    <div class="w-9 h-9 rounded-xl bg-cyan/20 border border-cyan/40 flex items-center justify-center text-cyan mb-1 shadow-sm">
-                        <i class="fas fa-traffic-light text-sm"></i>
-                    </div>
-                    <span class="text-[9px] font-extrabold text-slate-200">Semaforo</span>
-                </button>
+            <div class="reports-list" id="reportsListContainer">
+                <!-- Inserito dinamicamente tramite JS -->
             </div>
+
+            <button class="btn-clear-all" onclick="clearAllReports()">
+                <i class="fas fa-trash-alt"></i> Cancella Tutte le Segnalazioni
+            </button>
         </div>
     </div>
 
-    <!-- MODAL NEW REPORT -->
-    <div id="modal-report" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-end sm:items-center justify-center hidden opacity-0 transition-opacity duration-200">
-        <div class="bg-slate-900 border border-slate-800 w-full max-w-lg rounded-t-3xl sm:rounded-3xl p-5 shadow-2xl panel-slide-up transform translate-y-full">
-            <div class="flex justify-between items-center mb-4 border-b border-slate-800 pb-3">
-                <div class="flex items-center space-x-3">
-                    <div id="modal-type-icon" class="w-10 h-10 rounded-xl bg-danger/20 text-danger flex items-center justify-center font-bold text-lg">
-                        <i class="fas fa-camera"></i>
-                    </div>
-                    <div>
-                        <h3 class="font-bold text-base text-slate-100" id="modal-report-title">Nuova Segnalazione</h3>
-                        <p class="text-xs text-emerald-400 font-semibold" id="modal-report-sub">Posizione GPS corrente confermata</p>
-                    </div>
-                </div>
-                <button onclick="closeReportModal()" class="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white">
-                    <i class="fas fa-xmark"></i>
-                </button>
-            </div>
-
-            <form id="report-form" onsubmit="submitReport(event)">
-                <input type="hidden" id="report-type" value="fisso">
-                
-                <div class="space-y-4">
-                    <div>
-                        <label class="block text-xs font-medium text-slate-300 mb-1">Via / Note Aggiuntive (Opzionale)</label>
-                        <input type="text" id="report-note" placeholder="Es. SS106 km 45, direzione Sud" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-accent">
-                    </div>
-
-                    <div>
-                        <label class="block text-xs font-medium text-slate-300 mb-1">Limite Velocità (km/h)</label>
-                        <div class="grid grid-cols-4 gap-2">
-                            <button type="button" onclick="selectSpeedLimit(50)" class="speed-btn py-2 bg-slate-800 border border-slate-700 rounded-xl text-sm font-bold hover:bg-slate-700 text-slate-200">50</button>
-                            <button type="button" onclick="selectSpeedLimit(70)" class="speed-btn py-2 bg-slate-800 border border-slate-700 rounded-xl text-sm font-bold hover:bg-slate-700 text-slate-200">70</button>
-                            <button type="button" onclick="selectSpeedLimit(90)" class="speed-btn py-2 bg-slate-800 border border-slate-700 rounded-xl text-sm font-bold hover:bg-slate-700 text-slate-200">90</button>
-                            <button type="button" onclick="selectSpeedLimit(130)" class="speed-btn py-2 bg-slate-800 border border-slate-700 rounded-xl text-sm font-bold hover:bg-slate-700 text-slate-200">130</button>
-                        </div>
-                        <input type="hidden" id="report-speed" value="50">
-                    </div>
-
-                    <div class="bg-slate-800/50 p-3 rounded-xl border border-slate-800 flex items-center space-x-3 text-xs text-slate-400">
-                        <i class="fas fa-location-dot text-emerald-400 text-base flex-shrink-0"></i>
-                        <span>La segnalazione verrà posizionata esattamente dove ti trovi in questo istante.</span>
-                    </div>
-                </div>
-
-                <div class="mt-6 flex space-x-3">
-                    <button type="button" onclick="closeReportModal()" class="w-1/3 py-3 bg-slate-800 hover:bg-slate-700 rounded-xl text-sm font-semibold text-slate-300">Annulla</button>
-                    <button type="submit" class="w-2/3 py-3 bg-accent hover:bg-blue-600 rounded-xl text-sm font-bold text-white shadow-lg shadow-blue-500/30 flex items-center justify-center space-x-2">
-                        <i class="fas fa-paper-plane"></i>
-                        <span>Invia Ora</span>
-                    </button>
-                </div>
-            </form>
-        </div>
+    <!-- PROMPT ATTIVAZIONE AUDIO SINTETIZZATORE -->
+    <div class="audio-prompt" id="audioPrompt">
+        <i class="fas fa-volume-high" style="font-size: 32px; color: var(--accent-blue);"></i>
+        <div style="font-weight: 700;">Attiva Avvisi Sonori</div>
+        <div style="font-size: 12px; color: #94a3b8;">Sblocca l'audio del tuo browser per ascoltare i segnali acustici di avvicinamento ai controlli.</div>
+        <button class="btn-enable-audio" onclick="enableAudioContext()">ATTIVA AUDIO</button>
     </div>
 
-    <!-- MODAL REPORTS LIST -->
-    <div id="modal-list" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-end sm:items-center justify-center hidden opacity-0 transition-opacity duration-200">
-        <div class="bg-slate-900 border border-slate-800 w-full max-w-lg rounded-t-3xl sm:rounded-3xl p-5 shadow-2xl h-[80vh] flex flex-col">
-            <div class="flex justify-between items-center mb-3 border-b border-slate-800 pb-3 flex-shrink-0">
-                <div class="flex items-center space-x-2">
-                    <i class="fas fa-radar text-accent text-xl"></i>
-                    <h3 class="font-bold text-lg text-slate-100">Controlli Attivi Vicini</h3>
-                </div>
-                <button onclick="toggleListModal()" class="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white">
-                    <i class="fas fa-xmark"></i>
-                </button>
-            </div>
-
-            <div class="space-y-2 mb-3 flex-shrink-0">
-                <div class="flex items-center justify-between text-xs text-slate-400 mb-1">
-                    <span>Filtra per distanza:</span>
-                    <span id="radius-val" class="font-bold text-accent">Tutti i controlli</span>
-                </div>
-                <div class="flex space-x-2">
-                    <button onclick="setDistanceFilter(2)" class="dist-filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 border border-slate-700 text-slate-300">2 km</button>
-                    <button onclick="setDistanceFilter(5)" class="dist-filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 border border-slate-700 text-slate-300">5 km</button>
-                    <button onclick="setDistanceFilter(15)" class="dist-filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 border border-slate-700 text-slate-300">15 km</button>
-                    <button onclick="setDistanceFilter(0)" class="dist-filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-accent border border-accent text-white">Tutti</button>
-                </div>
-            </div>
-
-            <div id="reports-list-container" class="flex-grow overflow-y-auto space-y-3 pr-1 no-scrollbar">
-                <!-- Dynamic List Items -->
-            </div>
-
-            <div class="pt-3 border-t border-slate-800 flex justify-between items-center text-xs text-slate-500 flex-shrink-0">
-                <span>Tracciamento automatico HTTPS</span>
-                <button onclick="clearAllDemoReports()" class="text-red-400 hover:underline">Ripristina Demo</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- MODAL GPS HELP / STATS -->
-    <div id="modal-gps-help" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-end sm:items-center justify-center hidden opacity-0 transition-opacity duration-200">
-        <div class="bg-slate-900 border border-slate-800 w-full max-w-lg rounded-t-3xl sm:rounded-3xl p-5 shadow-2xl">
-            <div class="flex justify-between items-center mb-4 border-b border-slate-800 pb-3">
-                <div class="flex items-center space-x-2">
-                    <i class="fas fa-satellite-dish text-accent text-xl"></i>
-                    <h3 class="font-bold text-lg text-slate-100">Stato GPS HTTPS Nativo</h3>
-                </div>
-                <button onclick="closeGpsHelpModal()" class="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white">
-                    <i class="fas fa-xmark"></i>
-                </button>
-            </div>
-
-            <div class="space-y-4 text-sm text-slate-300">
-                <div class="p-3.5 bg-slate-800/80 border border-slate-700/80 rounded-2xl flex items-start space-x-3">
-                    <div id="gps-modal-icon" class="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-lg flex-shrink-0 mt-0.5">
-                        <i class="fas fa-satellite"></i>
-                    </div>
-                    <div>
-                        <h4 class="font-bold text-slate-100" id="gps-modal-status-title">Tracciamento GPS Attivo</h4>
-                        <p class="text-xs text-slate-400 mt-1 leading-relaxed" id="gps-modal-status-desc">In ascolto continuo tramite navigator.geolocation.watchPosition su HTTPS.</p>
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-2 gap-2 text-center">
-                    <div class="bg-slate-800 p-3 rounded-xl border border-slate-700">
-                        <p class="text-[10px] text-slate-400 uppercase font-bold">Accuratezza</p>
-                        <p class="text-base font-black text-emerald-400" id="stat-accuracy">-- m</p>
-                    </div>
-                    <div class="bg-slate-800 p-3 rounded-xl border border-slate-700">
-                        <p class="text-[10px] text-slate-400 uppercase font-bold">Aggiornamenti</p>
-                        <p class="text-base font-black text-accent" id="stat-updates">0</p>
-                    </div>
-                </div>
-
-                <div class="pt-2 border-t border-slate-800 flex justify-end">
-                    <button onclick="closeGpsHelpModal()" class="px-5 py-2.5 bg-accent hover:bg-blue-600 rounded-xl text-xs font-bold text-white shadow-lg">
-                        Chiudi
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
     <script>
-        /* ============================================================
-           GLOBAL STATE & CONSTANTS
-           ============================================================ */
+        /* CONFIGURAZIONE E TIPI SEGNALAZIONI */
+        const REPORT_TYPES = {
+            fisso: { label: 'Autovelox Fisso', icon: 'fa-camera', color: '#f43f5e' },
+            pattuglia: { label: 'Pattuglia Mobile', icon: 'fa-car-side', color: '#3b82f6' },
+            tutor: { label: 'Controllo Tutor', icon: 'fa-route', color: '#a855f7' },
+            etilometro: { label: 'Postazione Alcoltest', icon: 'fa-wine-bottle', color: '#f59e0b' },
+            semaforo: { label: 'Telecamera Semaforo', icon: 'fa-traffic-light', color: '#10b981' }
+        };
+
+        // Stato Applicazione
         let map;
-        let userMarker = null;
-        let userCircle = null;
-        let userPosition = null; // { lat, lng, speed, heading, accuracy }
-        let watchPositionId = null;
-        let isAutoFollow = true;
-        let isDarkMode = true;
-        let tileLayer;
-        let isAudioMuted = false;
-        let selectedDistanceFilter = 0; // 0 = all
-        let alertTriggeredFor = new Set();
-        let gpsUpdateCount = 0;
+        let userMarker;
+        let userAccuracyCircle;
+        let userPos = { lat: 41.9028, lng: 12.4964 }; // Coordinate di default (Roma)
+        let hasGpsFix = false;
+        let autoFollow = true;
+        let audioEnabled = false;
+        let audioSynth = null;
+        let reports = [];
+        let reportMarkers = {};
+        let activeAlertId = null;
 
-        // Speed Trap Control Types Metadata
-        const CONTROL_TYPES = {
-            fisso: { label: 'Autovelox Fisso', icon: 'fa-camera', color: '#ef4444', badgeBg: 'bg-danger' },
-            mobile: { label: 'Pattuglia / Mobile', icon: 'fa-car-on', color: '#f59e0b', badgeBg: 'bg-warning' },
-            tutor: { label: 'Tutor / Tratta', icon: 'fa-road', color: '#2563eb', badgeBg: 'bg-accent' },
-            etilometro: { label: 'Etilometro / Blocco', icon: 'fa-wine-bottle', color: '#8b5cf6', badgeBg: 'bg-purple' },
-            semaforo: { label: 'Telecamera Semaforo', icon: 'fa-traffic-light', color: '#06b6d4', badgeBg: 'bg-cyan' }
-        };
-
-        /* ============================================================
-           BOOTSTRAP
-           ============================================================ */
-        window.onload = function() {
+        // Inizializzazione Applicazione
+        window.addEventListener('DOMContentLoaded', () => {
+            checkProtocol();
             initMap();
-            checkSecurityProtocol();
-            startAutomaticGpsTracking();
-            loadReports();
+            loadReportsFromStorage();
+            startGPSWatch();
             setupToneAudio();
-            selectSpeedLimit(50);
-        };
+        });
 
+        /* CONTROLLO PROTOCOLLO HTTPS */
+        function checkProtocol() {
+            if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+                document.getElementById('httpWarning').style.display = 'block';
+            }
+        }
+
+        /* INIZIALIZZAZIONE MAPPA LEAFLET */
         function initMap() {
-            // Default initial center (Rome)
-            const defaultLat = 41.9028;
-            const defaultLng = 12.4964;
-
             map = L.map('map', {
                 zoomControl: false,
                 attributionControl: false
-            }).setView([defaultLat, defaultLng], 14);
+            }).setView([userPos.lat, userPos.lng], 15);
 
-            tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                maxZoom: 19
+            // Layer Mappa Scuro Stamen/CartoDB Dark Matter
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+                maxZoom: 19,
+                subdomains: 'abcd'
             }).addTo(map);
 
-            document.getElementById('map').classList.add('dark-tiles');
+            // Icona Custom per l'Utente
+            const userIcon = L.divIcon({
+                className: 'custom-user-icon',
+                html: `<div style="
+                    width: 22px;
+                    height: 22px;
+                    background: #2563eb;
+                    border: 3px solid #ffffff;
+                    border-radius: 50%;
+                    box-shadow: 0 0 15px rgba(37,99,235,0.8);
+                "></div>`,
+                iconSize: [22, 22],
+                iconAnchor: [11, 11]
+            });
 
-            // Disable Auto-Follow if user drags map manually
-            map.on('dragstart', function() {
-                if (isAutoFollow) {
-                    setAutoFollow(false);
-                }
+            userMarker = L.marker([userPos.lat, userPos.lng], { icon: userIcon, zIndexOffset: 1000 }).addTo(map);
+            userAccuracyCircle = L.circle([userPos.lat, userPos.lng], {
+                radius: 30,
+                color: '#2563eb',
+                fillColor: '#3b82f6',
+                fillOpacity: 0.15,
+                weight: 1
+            }).addTo(map);
+
+            // Se l'utente trascina la mappa, disattiva l'Auto-Follow
+            map.on('dragstart', () => {
+                setAutoFollow(false);
             });
         }
 
-        function checkSecurityProtocol() {
-            if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-                const banner = document.getElementById('http-warning-banner');
-                banner.classList.remove('-translate-y-48');
-                banner.classList.add('translate-y-0');
+        /* TRACCIAMENTO GPS CONTINUO HTTPS */
+        function startGPSWatch() {
+            if (!("geolocation" in navigator)) {
+                updateStatus('no-gps', 'GPS Non Supportato');
+                return;
             }
-        }
 
-        function dismissHttpBanner() {
-            const banner = document.getElementById('http-warning-banner');
-            banner.classList.remove('translate-y-0');
-            banner.classList.add('-translate-y-48');
-        }
+            updateStatus('loading', 'Ricerca Satellite...');
 
-        /* ============================================================
-           AUTOMATIC NATIVE GEOLOCATION (HTTPS OPTIMIZED)
-           ============================================================ */
-        function startAutomaticGpsTracking() {
-            updateGPSStatus('SEARCHING', 'Ricerca GPS HTTPS...');
+            const geoOptions = {
+                enableHighAccuracy: true,
+                timeout: 15000,
+                maximumAge: 0
+            };
 
-            if ("geolocation" in navigator) {
-                // Native continuous geolocation tracking
-                watchPositionId = navigator.geolocation.watchPosition(
-                    (position) => {
-                        gpsUpdateCount++;
-                        const lat = position.coords.latitude;
-                        const lng = position.coords.longitude;
-                        const accuracy = Math.round(position.coords.accuracy);
-                        
-                        // Speed in km/h (convert from m/s)
-                        const speedKmh = position.coords.speed ? Math.round(position.coords.speed * 3.6) : 0;
-                        const heading = position.coords.heading || 0;
+            navigator.geolocation.watchPosition(
+                (pos) => {
+                    hasGpsFix = true;
+                    userPos = {
+                        lat: pos.coords.latitude,
+                        lng: pos.coords.longitude
+                    };
 
-                        userPosition = { lat, lng, speed: speedKmh, heading, accuracy };
-
-                        updateUserMarkerAndHUD(lat, lng, accuracy, speedKmh, heading);
-                        updateGPSStatus('ACTIVE', `GPS Attivo (${accuracy}m)`, accuracy);
-
-                        if (isAutoFollow) {
-                            map.panTo([lat, lng], { animate: true, duration: 0.8 });
-                        }
-
-                        generateDemoDataIfEmpty(lat, lng);
-                        checkProximityAlerts();
-                        renderReports();
-                    },
-                    (error) => {
-                        console.warn("GPS Error:", error.message);
-                        updateGPSStatus('ERROR', getGpsErrorMessage(error));
-                    },
-                    {
-                        enableHighAccuracy: true,
-                        maximumAge: 1000,
-                        timeout: 10000
+                    // Calcolo ed aggiornamento Velocità (m/s -> km/h)
+                    let speed = 0;
+                    if (pos.coords.speed !== null && pos.coords.speed !== undefined && !isNaN(pos.coords.speed)) {
+                        speed = Math.round(pos.coords.speed * 3.6);
                     }
-                );
-            } else {
-                updateGPSStatus('ERROR', 'Geolocalizzazione non supportata');
+                    document.getElementById('speedDisplay').innerText = speed;
+
+                    // Aggiorna marker e cerchio sulla mappa
+                    userMarker.setLatLng([userPos.lat, userPos.lng]);
+                    userAccuracyCircle.setLatLng([userPos.lat, userPos.lng]);
+                    if (pos.coords.accuracy) {
+                        userAccuracyCircle.setRadius(pos.coords.accuracy);
+                    }
+
+                    if (autoFollow) {
+                        map.panTo([userPos.lat, userPos.lng], { animate: true });
+                    }
+
+                    updateStatus('active', 'GPS Attivo');
+                    checkProximityAlerts();
+                },
+                (err) => {
+                    console.warn("Errore acquisizione GPS:", err);
+                    if (!hasGpsFix) {
+                        updateStatus('error', 'GPS Assente - Tocca x Riprovare');
+                    }
+                },
+                geoOptions
+            );
+        }
+
+        function requestGPSPosition() {
+            startGPSWatch();
+        }
+
+        /* AGGIORNAMENTO BADGE STATO GPS */
+        function updateStatus(type, text) {
+            const dot = document.getElementById('statusDot');
+            const label = document.getElementById('statusText');
+
+            dot.className = 'status-dot';
+            if (type === 'active') {
+                dot.classList.add('active');
+            } else if (type === 'error' || type === 'no-gps') {
+                dot.classList.add('error');
+            }
+
+            label.innerText = text;
+        }
+
+        /* GESTIONE SEGNALAZIONI (AGGIUNTA) */
+        function addReport(type) {
+            if (!REPORT_TYPES[type]) return;
+
+            // Feedback aptico (vibrazione) se disponibile su cellulare
+            if (navigator.vibrate) navigator.vibrate([80, 50, 80]);
+
+            const report = {
+                id: 'rep_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+                type: type,
+                lat: userPos.lat,
+                lng: userPos.lng,
+                timestamp: new Date().toISOString(),
+                confirmations: 1,
+                rejections: 0
+            };
+
+            reports.push(report);
+            saveReportsToStorage();
+            renderReportMarker(report);
+            updateReportCountBadge();
+
+            // Svolazza/Centra sulla segnalazione
+            if (autoFollow) {
+                map.panTo([report.lat, report.lng]);
             }
         }
 
-        function updateUserMarkerAndHUD(lat, lng, accuracy, speedKmh, heading) {
-            const latlng = [lat, lng];
+        /* RENDER MARKER SULLA MAPPA */
+        function renderReportMarker(report) {
+            const config = REPORT_TYPES[report.type] || REPORT_TYPES.fisso;
 
-            // Update Speedometer HUD
-            document.getElementById('speedometer-value').innerText = speedKmh;
+            const markerHtml = `
+                <div style="
+                    width: 36px;
+                    height: 36px;
+                    background: ${config.color};
+                    border: 2px solid #ffffff;
+                    border-radius: 50%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    color: white;
+                    font-size: 16px;
+                    box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+                ">
+                    <i class="fas ${config.icon}"></i>
+                </div>
+            `;
 
-            // Update Compass
-            const compassArrow = document.getElementById('compass-arrow');
-            compassArrow.style.transform = `rotate(${heading}deg)`;
-            document.getElementById('compass-text').innerText = getCompassDirection(heading);
-
-            // Update Map User Marker
-            const userIcon = L.divIcon({
-                className: 'custom-user-icon',
-                html: `
-                    <div class="relative flex items-center justify-center w-9 h-9">
-                        <div class="absolute w-9 h-9 bg-blue-500/30 rounded-full animate-ping"></div>
-                        <div class="w-7 h-7 bg-accent border-2 border-white rounded-full flex items-center justify-center shadow-xl text-white text-xs">
-                            <i class="fas fa-location-arrow heading-arrow" style="transform: rotate(${heading - 45}deg)"></i>
-                        </div>
-                    </div>
-                `,
+            const icon = L.divIcon({
+                className: 'custom-report-icon',
+                html: markerHtml,
                 iconSize: [36, 36],
                 iconAnchor: [18, 18]
             });
 
-            if (!userMarker) {
-                userMarker = L.marker(latlng, { icon: userIcon }).addTo(map);
-                userCircle = L.circle(latlng, {
-                    radius: accuracy || 30,
-                    color: '#2563eb',
-                    fillColor: '#3b82f6',
-                    fillOpacity: 0.15,
-                    weight: 1.5
-                }).addTo(map);
+            const marker = L.marker([report.lat, report.lng], { icon: icon }).addTo(map);
 
-                map.setView(latlng, 15);
+            // Popup di interazione e rimozione rapida
+            const popupContent = document.createElement('div');
+            popupContent.className = 'popup-card';
+            popupContent.innerHTML = `
+                <div class="popup-title">${config.label}</div>
+                <div class="popup-time">Segnalato: ${new Date(report.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
+                <div class="popup-actions">
+                    <div class="popup-vote-box">
+                        <button class="btn-popup-vote yes" onclick="voteReport('${report.id}', true)">
+                            <i class="fas fa-thumbs-up"></i> C'è (${report.confirmations})
+                        </button>
+                        <button class="btn-popup-vote no" onclick="voteReport('${report.id}', false)">
+                            <i class="fas fa-thumbs-down"></i> Non c'è
+                        </button>
+                    </div>
+                    <button class="btn-popup-delete" onclick="deleteReport('${report.id}')">
+                        <i class="fas fa-trash-alt"></i> Rimuovi Ora
+                    </button>
+                </div>
+            `;
+
+            marker.bindPopup(popupContent);
+            reportMarkers[report.id] = marker;
+        }
+
+        /* RIMOZIONE ED ELIMINAZIONE SEGNALAZIONE IN MODO DIVERSIFICATO */
+        function deleteReport(id) {
+            // 1. Rimuovi Marker dalla Mappa Leaflet
+            if (reportMarkers[id]) {
+                map.removeLayer(reportMarkers[id]);
+                delete reportMarkers[id];
+            }
+
+            // 2. Rimuovi dall'array principale dei dati
+            reports = reports.filter(r => r.id !== id);
+
+            // 3. Salva la lista aggiornata in LocalStorage
+            saveReportsToStorage();
+
+            // 4. Aggiorna Modale/Lista ed UI
+            updateReportCountBadge();
+            renderReportsListInModal();
+            checkProximityAlerts();
+
+            if (navigator.vibrate) navigator.vibrate(50);
+        }
+
+        /* VOTAZIONE CONFERMA / RIMOZIONE AUTOMATICA */
+        function voteReport(id, isPositive) {
+            const report = reports.find(r => r.id === id);
+            if (!report) return;
+
+            if (isPositive) {
+                report.confirmations++;
             } else {
-                userMarker.setLatLng(latlng);
-                userMarker.setIcon(userIcon);
-                userCircle.setLatLng(latlng);
-                userCircle.setRadius(accuracy || 30);
+                report.rejections++;
+                // Se i feedback negativi superano quelli positivi, elimina la segnalazione
+                if (report.rejections >= 2 || (report.rejections - report.confirmations) >= 1) {
+                    deleteReport(id);
+                    return;
+                }
+            }
+
+            saveReportsToStorage();
+            if (reportMarkers[id]) {
+                reportMarkers[id].closePopup();
             }
         }
 
-        function updateGPSStatus(status, message, accuracy = 0) {
-            const dot = document.getElementById('gps-status-dot');
-            const text = document.getElementById('gps-status-text');
-            const accuracyText = document.getElementById('gps-accuracy-text');
+        /* CANCELA TUTTE LE SEGNALAZIONI (RESET COMPLETO) */
+        function clearAllReports() {
+            if (reports.length === 0) return;
 
-            text.innerText = message;
+            if (confirm("Sei sicuro di voler cancellare tutte le segnalazioni presenti sulla mappa?")) {
+                // Rimuovi tutti i layer
+                Object.keys(reportMarkers).forEach(id => {
+                    map.removeLayer(reportMarkers[id]);
+                });
+                reportMarkers = {};
+                reports = [];
 
-            if (status === 'ACTIVE') {
-                dot.className = "w-3 h-3 rounded-full bg-emerald-500 animate-pulse";
-                accuracyText.innerText = `Precisione: ±${accuracy} metri`;
+                saveReportsToStorage();
+                updateReportCountBadge();
+                renderReportsListInModal();
+                checkProximityAlerts();
+            }
+        }
+
+        /* STORAGE LOCALE (LOCALSTORAGE) */
+        function saveReportsToStorage() {
+            localStorage.setItem('velox_alert_reports', JSON.stringify(reports));
+        }
+
+        function loadReportsFromStorage() {
+            const stored = localStorage.getItem('velox_alert_reports');
+            if (stored) {
+                try {
+                    reports = JSON.parse(stored);
+                    reports.forEach(report => renderReportMarker(report));
+                    updateReportCountBadge();
+                } catch (e) {
+                    console.error("Errore caricamento segnalazioni:", e);
+                    reports = [];
+                }
+            }
+        }
+
+        function updateReportCountBadge() {
+            document.getElementById('reportCountBadge').innerText = `${reports.length} Attive`;
+        }
+
+        /* SISTEMA DI ALLERTA E AVVISO PROSSIMITÀ VELOX */
+        function checkProximityAlerts() {
+            if (reports.length === 0) {
+                hideAlert();
+                return;
+            }
+
+            let nearestReport = null;
+            let minDistance = Infinity;
+
+            reports.forEach(rep => {
+                const dist = calculateDistance(userPos.lat, userPos.lng, rep.lat, rep.lng);
+                if (dist < minDistance) {
+                    minDistance = dist;
+                    nearestReport = rep;
+                }
+            });
+
+            // Avviso attivo entro un raggio di 500 metri
+            if (minDistance <= 500 && nearestReport) {
+                const config = REPORT_TYPES[nearestReport.type] || REPORT_TYPES.fisso;
+                showAlert(config.label, `A circa ${Math.round(minDistance)} metri dalla tua posizione`);
                 
-                document.getElementById('stat-accuracy').innerText = `±${accuracy} m`;
-                document.getElementById('stat-updates').innerText = gpsUpdateCount;
-            } else if (status === 'SEARCHING') {
-                dot.className = "w-3 h-3 rounded-full bg-amber-500 animate-ping";
-                accuracyText.innerText = "Acquisizione satelliti in corso...";
-            } else {
-                dot.className = "w-3 h-3 rounded-full bg-red-500";
-                accuracyText.innerText = "Verifica abilitazione posizione";
-            }
-        }
-
-        function getGpsErrorMessage(error) {
-            if (!error) return "Errore GPS";
-            switch(error.code) {
-                case 1: return "Autorizzazione GPS Negata";
-                case 2: return "Segnale Satellitare Assente";
-                case 3: return "Timeout Geoliazzazione";
-                default: return "Errore Rilevamento GPS";
-            }
-        }
-
-        function toggleAutoFollow() {
-            setAutoFollow(!isAutoFollow);
-        }
-
-        function setAutoFollow(active) {
-            isAutoFollow = active;
-            const icon = document.getElementById('autofollow-icon');
-            if (isAutoFollow) {
-                icon.className = "fas fa-crosshairs text-lg text-emerald-400";
-                if (userPosition) {
-                    map.flyTo([userPosition.lat, userPosition.lng], 16, { animate: true, duration: 1 });
+                // Emetti suono acustico di avviso
+                if (activeAlertId !== nearestReport.id) {
+                    activeAlertId = nearestReport.id;
+                    playAlertSound();
                 }
             } else {
-                icon.className = "fas fa-hand-pointer text-lg text-slate-400";
+                hideAlert();
+                activeAlertId = null;
+            }
+        }
+
+        function showAlert(title, subtitle) {
+            const banner = document.getElementById('alertBanner');
+            document.getElementById('alertTitle').innerText = title.toUpperCase();
+            document.getElementById('alertSub').innerText = subtitle;
+            banner.classList.add('active');
+        }
+
+        function hideAlert() {
+            const banner = document.getElementById('alertBanner');
+            banner.classList.remove('active');
+        }
+
+        /* CALCOLO DISTANZA IN METRI (FORMULA HAVERSINE) */
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371e3; // Raggio terrestre in metri
+            const φ1 = lat1 * Math.PI / 180;
+            const φ2 = lat2 * Math.PI / 180;
+            const Δφ = (lat2 - lat1) * Math.PI / 180;
+            const Δλ = (lon2 - lon1) * Math.PI / 180;
+
+            const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+                      Math.cos(φ1) * Math.cos(φ2) *
+                      Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+            return R * c;
+        }
+
+        /* MODALE LISTA SEGNALAZIONI ED ELIMINAZIONE MANUAL */
+        function openManagerModal() {
+            renderReportsListInModal();
+            document.getElementById('managerModal').classList.add('open');
+        }
+
+        function closeManagerModal() {
+            document.getElementById('managerModal').classList.remove('open');
+        }
+
+        function renderReportsListInModal() {
+            const container = document.getElementById('reportsListContainer');
+            container.innerHTML = '';
+
+            if (reports.length === 0) {
+                container.innerHTML = `<div style="text-align: center; color: var(--text-sub); padding: 20px 0; font-size: 13px;">Nessuna segnalazione attiva al momento.</div>`;
+                return;
+            }
+
+            reports.forEach(rep => {
+                const config = REPORT_TYPES[rep.type] || REPORT_TYPES.fisso;
+                const dist = Math.round(calculateDistance(userPos.lat, userPos.lng, rep.lat, rep.lng));
+
+                const item = document.createElement('div');
+                item.className = 'report-item';
+                item.innerHTML = `
+                    <div class="report-item-left">
+                        <div class="report-item-icon" style="color:${config.color}">
+                            <i class="fas ${config.icon}"></i>
+                        </div>
+                        <div>
+                            <div class="report-item-title">${config.label}</div>
+                            <div class="report-item-sub">Distanza: ${dist}m - Ora: ${new Date(rep.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
+                        </div>
+                    </div>
+                    <button class="btn-delete-report" onclick="deleteReport('${rep.id}')">
+                        <i class="fas fa-trash-alt"></i> Elimina
+                    </button>
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        /* CONTROLLO INSEGUIMENTO AUTOMATICO (AUTO-FOLLOW) */
+        function toggleAutoFollow() {
+            setAutoFollow(!autoFollow);
+        }
+
+        function setAutoFollow(val) {
+            autoFollow = val;
+            const btn = document.getElementById('btnAutoFollow');
+            if (autoFollow) {
+                btn.classList.add('active');
+                if (hasGpsFix) map.panTo([userPos.lat, userPos.lng]);
+            } else {
+                btn.classList.remove('active');
             }
         }
 
         function recenterMap() {
             setAutoFollow(true);
-            if (navigator.vibrate) navigator.vibrate(30);
         }
 
-        function getCompassDirection(heading) {
-            if (heading === null || heading === undefined) return "N";
-            const directions = ['N', 'NE', 'E', 'SE', 'S', 'SO', 'O', 'NO'];
-            return directions[Math.round(heading / 45) % 8];
-        }
-
-        /* ============================================================
-           DATA PERSISTENCE & DEMO DATA
-           ============================================================ */
-        function loadReports() {
-            const saved = localStorage.getItem('velox_reports_https_v1');
-            if (saved) {
-                try {
-                    reports = JSON.parse(saved);
-                } catch(e) {
-                    reports = [];
-                }
-            }
-            renderReports();
-        }
-
-        function saveReports() {
-            localStorage.setItem('velox_reports_https_v1', JSON.stringify(reports));
-            renderReports();
-        }
-
-        function generateDemoDataIfEmpty(lat, lng) {
-            if (reports.length === 0) {
-                const demoItems = [
-                    { type: 'fisso', note: 'Autovelox Fisso Box', speed: 50, offsetLat: 0.002, offsetLng: 0.002, confirmations: 8, rejections: 0 },
-                    { type: 'mobile', note: 'Pattuglia con Laser', speed: 70, offsetLat: -0.003, offsetLng: 0.004, confirmations: 5, rejections: 0 },
-                    { type: 'tutor', note: 'Inizio Controllo Tratta', speed: 90, offsetLat: 0.006, offsetLng: -0.005, confirmations: 14, rejections: 0 },
-                    { type: 'semaforo', note: 'Telecamera T-Red', speed: 50, offsetLat: -0.001, offsetLng: -0.002, confirmations: 4, rejections: 0 }
-                ];
-
-                const now = new Date();
-
-                demoItems.forEach((item, index) => {
-                    const timeStr = new Date(now.getTime() - (index * 15 * 60000)).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
-                    reports.push({
-                        id: 'demo_' + Date.now() + '_' + index,
-                        type: item.type,
-                        note: item.note,
-                        speed: item.speed,
-                        lat: lat + item.offsetLat,
-                        lng: lng + item.offsetLng,
-                        timestamp: timeStr,
-                        confirmations: item.confirmations,
-                        rejections: item.rejections
-                    });
-                });
-
-                saveReports();
-            }
-        }
-
-        function clearAllDemoReports() {
-            reports = [];
-            localStorage.removeItem('velox_reports_https_v1');
-            if (userPosition) {
-                generateDemoDataIfEmpty(userPosition.lat, userPosition.lng);
-            }
-            toggleListModal();
-        }
-
-        /* ============================================================
-           MAP & LIST RENDERING
-           ============================================================ */
-        let reports = [];
-        let markersOnMap = {};
-
-        function renderReports() {
-            // Remove markers no longer in list
-            Object.keys(markersOnMap).forEach(id => {
-                if (!reports.find(r => r.id === id)) {
-                    map.removeLayer(markersOnMap[id]);
-                    delete markersOnMap[id];
-                }
-            });
-
-            let visibleCount = 0;
-            const listContainer = document.getElementById('reports-list-container');
-            listContainer.innerHTML = '';
-
-            reports.forEach(report => {
-                const dist = userPosition ? calculateDistance(userPosition.lat, userPosition.lng, report.lat, report.lng) : null;
-                
-                // Distance Filter
-                if (selectedDistanceFilter > 0 && dist && dist > selectedDistanceFilter) {
-                    if (markersOnMap[report.id]) {
-                        map.removeLayer(markersOnMap[report.id]);
-                        delete markersOnMap[report.id];
-                    }
-                    return;
-                }
-
-                visibleCount++;
-                const typeInfo = CONTROL_TYPES[report.type] || CONTROL_TYPES.fisso;
-
-                // Create or Update Leaflet Markers
-                if (!markersOnMap[report.id]) {
-                    const markerIcon = L.divIcon({
-                        className: 'custom-marker-wrapper',
-                        html: `
-                            <div class="custom-marker-icon pulse-animation" style="background-color: ${typeInfo.color}; width: 38px; height: 38px;">
-                                <i class="fas ${typeInfo.icon} text-base"></i>
-                            </div>
-                        `,
-                        iconSize: [38, 38],
-                        iconAnchor: [19, 19]
-                    });
-
-                    const marker = L.marker([report.lat, report.lng], { icon: markerIcon }).addTo(map);
-                    marker.bindPopup(createPopupContent(report, typeInfo, dist));
-                    markersOnMap[report.id] = marker;
-                } else {
-                    markersOnMap[report.id].setPopupContent(createPopupContent(report, typeInfo, dist));
-                }
-
-                // Render Item in Modal List
-                const card = document.createElement('div');
-                card.className = "bg-slate-800/90 border border-slate-700/60 rounded-2xl p-3.5 shadow-md flex items-center justify-between";
-                card.innerHTML = `
-                    <div class="flex items-center space-x-3">
-                        <div class="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-lg" style="background-color: ${typeInfo.color}20; border: 1px solid ${typeInfo.color}40; color: ${typeInfo.color}">
-                            <i class="fas ${typeInfo.icon}"></i>
-                        </div>
-                        <div>
-                            <div class="flex items-center space-x-2">
-                                <h4 class="font-bold text-sm text-slate-100">${typeInfo.label}</h4>
-                                <span class="bg-slate-700 text-slate-300 text-[10px] px-2 py-0.5 rounded-full font-semibold">${report.speed} km/h</span>
-                            </div>
-                            <p class="text-xs text-slate-400 mt-0.5">${report.note || 'Nessuna nota'}</p>
-                            <div class="flex items-center space-x-3 mt-1 text-[11px] text-slate-400">
-                                <span><i class="far fa-clock mr-1"></i>${report.timestamp}</span>
-                                <span><i class="fas fa-thumbs-up mr-1 text-emerald-400"></i>${report.confirmations || 0}</span>
-                                ${dist !== null ? `<span class="text-accent font-semibold"><i class="fas fa-location-dot mr-1"></i>${formatDistance(dist)}</span>` : ''}
-                            </div>
-                        </div>
-                    </div>
-                    <button onclick="focusOnReport('${report.id}')" class="w-9 h-9 bg-slate-700/60 hover:bg-slate-700 rounded-xl flex items-center justify-center text-slate-200">
-                        <i class="fas fa-chevron-right text-xs"></i>
-                    </button>
-                `;
-                listContainer.appendChild(card);
-            });
-
-            document.getElementById('badge-count').innerText = visibleCount;
-            if (visibleCount === 0) {
-                listContainer.innerHTML = `
-                    <div class="text-center py-8 text-slate-500">
-                        <i class="fas fa-shield-halved text-3xl mb-2 text-slate-600"></i>
-                        <p class="text-sm">Nessuna segnalazione attiva nel raggio selezionato.</p>
-                    </div>
-                `;
-            }
-        }
-
-        function createPopupContent(report, typeInfo, dist) {
-            return `
-                <div class="p-1 max-w-[220px]">
-                    <div class="flex items-center justify-between mb-2">
-                        <span class="text-[10px] uppercase font-extrabold px-2 py-0.5 rounded-md text-white" style="background-color: ${typeInfo.color}">
-                            ${typeInfo.label}
-                        </span>
-                        <span class="text-xs font-bold bg-slate-700 text-slate-200 px-2 py-0.5 rounded-md">
-                            ${report.speed} km/h
-                        </span>
-                    </div>
-                    
-                    <p class="text-xs font-semibold text-slate-200 mb-1">${report.note || 'Nessuna descrizione'}</p>
-                    
-                    <div class="text-[11px] text-slate-400 mb-3 flex justify-between">
-                        <span>Ora: ${report.timestamp}</span>
-                        ${dist ? `<span class="text-accent font-bold">${formatDistance(dist)}</span>` : ''}
-                    </div>
-
-                    <div class="pt-2 border-t border-slate-700/60 flex items-center justify-between gap-1">
-                        <button onclick="voteReport('${report.id}', true)" class="flex-1 py-1 bg-emerald-600/90 hover:bg-emerald-500 text-white text-[11px] font-bold rounded-lg shadow flex items-center justify-center space-x-1 active:scale-95 transition">
-                            <i class="fas fa-thumbs-up"></i>
-                            <span>Conferma (${report.confirmations || 0})</span>
-                        </button>
-                        <button onclick="voteReport('${report.id}', false)" class="px-2 py-1 bg-slate-700 hover:bg-slate-600 text-slate-300 text-[11px] font-bold rounded-lg shadow active:scale-95 transition" title="Non c'è più">
-                            <i class="fas fa-thumbs-down"></i>
-                        </button>
-                    </div>
-                </div>
-            `;
-        }
-
-        function focusOnReport(id) {
-            const report = reports.find(r => r.id === id);
-            if (report && markersOnMap[id]) {
-                setAutoFollow(false);
-                toggleListModal();
-                map.flyTo([report.lat, report.lng], 16, { animate: true, duration: 1 });
-                setTimeout(() => {
-                    markersOnMap[id].openPopup();
-                }, 1000);
-            }
-        }
-
-        function voteReport(id, isUpvote) {
-            const report = reports.find(r => r.id === id);
-            if (report) {
-                if (isUpvote) {
-                    report.confirmations = (report.confirmations || 0) + 1;
-                } else {
-                    report.rejections = (report.rejections || 0) + 1;
-                    if (report.rejections >= 3) {
-                        reports = reports.filter(r => r.id !== id);
-                    }
-                }
-                saveReports();
-                if (navigator.vibrate) navigator.vibrate([30, 40]);
-            }
-        }
-
-        /* ============================================================
-           REPORT CREATION
-           ============================================================ */
-        function openReportModal(type) {
-            if (!userPosition) {
-                alert("Acquisizione posizione GPS in corso... Riprova tra un istante.");
-                return;
-            }
-
-            const typeInfo = CONTROL_TYPES[type] || CONTROL_TYPES.fisso;
-            document.getElementById('report-type').value = type;
-            document.getElementById('modal-report-title').innerText = `Segnala ${typeInfo.label}`;
-            
-            const iconContainer = document.getElementById('modal-type-icon');
-            iconContainer.className = `w-10 h-10 rounded-xl flex items-center justify-center font-bold text-lg`;
-            iconContainer.style.backgroundColor = `${typeInfo.color}20`;
-            iconContainer.style.border = `1px solid ${typeInfo.color}40`;
-            iconContainer.style.color = typeInfo.color;
-            iconContainer.innerHTML = `<i class="fas ${typeInfo.icon}"></i>`;
-
-            const modal = document.getElementById('modal-report');
-            modal.classList.remove('hidden');
-            setTimeout(() => {
-                modal.classList.remove('opacity-0');
-                modal.querySelector('.panel-slide-up').classList.remove('translate-y-full');
-            }, 10);
-
-            if (navigator.vibrate) navigator.vibrate(50);
-        }
-
-        function closeReportModal() {
-            const modal = document.getElementById('modal-report');
-            modal.querySelector('.panel-slide-up').classList.add('translate-y-full');
-            modal.classList.add('opacity-0');
-            setTimeout(() => {
-                modal.classList.add('hidden');
-            }, 200);
-        }
-
-        function selectSpeedLimit(speed) {
-            document.getElementById('report-speed').value = speed;
-            const buttons = document.querySelectorAll('.speed-btn');
-            buttons.forEach(btn => {
-                if (btn.innerText === speed.toString()) {
-                    btn.classList.add('bg-accent', 'text-white', 'border-accent');
-                    btn.classList.remove('bg-slate-800', 'text-slate-200');
-                } else {
-                    btn.classList.remove('bg-accent', 'text-white', 'border-accent');
-                    btn.classList.add('bg-slate-800', 'text-slate-200');
-                }
-            });
-        }
-
-        function submitReport(event) {
-            event.preventDefault();
-            if (!userPosition) return;
-
-            const type = document.getElementById('report-type').value;
-            const note = document.getElementById('report-note').value;
-            const speed = document.getElementById('report-speed').value;
-            const now = new Date();
-            const timeStr = now.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
-
-            const newReport = {
-                id: 'report_' + Date.now(),
-                type: type,
-                note: note,
-                speed: parseInt(speed),
-                lat: userPosition.lat,
-                lng: userPosition.lng,
-                timestamp: timeStr,
-                confirmations: 1,
-                rejections: 0
-            };
-
-            reports.unshift(newReport);
-            saveReports();
-            closeReportModal();
-
-            document.getElementById('report-note').value = '';
-
-            playAlertSound(true);
-            if (navigator.vibrate) navigator.vibrate([50, 100, 50]);
-        }
-
-        /* ============================================================
-           AUDIO ALERTS & PROXIMITY DETECTION
-           ============================================================ */
+        /* AUDIO E ALLARMI ACUSTICI CON TONE.JS */
         function setupToneAudio() {
-            document.body.addEventListener('click', () => {
-                if (Tone.context.state !== 'running') {
-                    Tone.start();
-                }
-            }, { once: true });
-        }
-
-        function playAlertSound(isSuccess = false) {
-            if (isAudioMuted) return;
-
             try {
-                if (isSuccess) {
-                    const synth = new Tone.Synth().toDestination();
-                    synth.triggerAttackRelease("C5", "8n", Tone.now());
-                    synth.triggerAttackRelease("G5", "8n", Tone.now() + 0.15);
-                } else {
-                    const synth = new Tone.Synth({ oscillator: { type: "triangle" } }).toDestination();
-                    const now = Tone.now();
-                    synth.triggerAttackRelease("A5", "0.15", now);
-                    synth.triggerAttackRelease("A5", "0.15", now + 0.2);
-                }
-            } catch(e) {
-                console.log("Audio play error:", e);
+                audioSynth = new Tone.Synth({
+                    oscillator: { type: 'triangle' },
+                    envelope: { attack: 0.005, decay: 0.1, sustain: 0.3, release: 1 }
+                }).toDestination();
+            } catch (e) {
+                console.warn("Tone.js Audio non inizializzato:", e);
             }
         }
 
-        function checkProximityAlerts() {
-            if (!userPosition || reports.length === 0) return;
-
-            const PROXIMITY_LIMIT_METERS = 500;
-            let closestReport = null;
-            let minDistance = Infinity;
-
-            reports.forEach(report => {
-                const distInKm = calculateDistance(userPosition.lat, userPosition.lng, report.lat, report.lng);
-                const distInMeters = distInKm * 1000;
-
-                if (distInMeters <= PROXIMITY_LIMIT_METERS && distInMeters < minDistance) {
-                    minDistance = distInMeters;
-                    closestReport = report;
-                }
-            });
-
-            if (closestReport) {
-                const typeInfo = CONTROL_TYPES[closestReport.type] || CONTROL_TYPES.fisso;
-                showProximityBanner(closestReport, typeInfo, Math.round(minDistance));
-
-                if (!alertTriggeredFor.has(closestReport.id)) {
-                    playAlertSound(false);
-                    if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 200]);
-                    alertTriggeredFor.add(closestReport.id);
-                }
-            } else {
-                dismissAlert();
-            }
-        }
-
-        function showProximityBanner(report, typeInfo, distanceMeters) {
-            const alertBox = document.getElementById('proximity-alert');
-            document.getElementById('alert-title').innerText = `${typeInfo.label} (${report.speed} km/h)`;
-            document.getElementById('alert-dist').innerText = `Distanza: circa ${distanceMeters} metri`;
-
-            alertBox.classList.remove('-translate-y-48');
-            alertBox.classList.add('translate-y-0');
-        }
-
-        function dismissAlert() {
-            const alertBox = document.getElementById('proximity-alert');
-            alertBox.classList.remove('translate-y-0');
-            alertBox.classList.add('-translate-y-48');
+        function enableAudioContext() {
+            Tone.start();
+            audioEnabled = true;
+            document.getElementById('audioPrompt').classList.remove('active');
+            document.getElementById('audioIcon').className = 'fas fa-volume-up';
+            playAlertSound();
         }
 
         function toggleAudio() {
-            isAudioMuted = !isAudioMuted;
-            const icon = document.getElementById('audio-icon');
-            if (isAudioMuted) {
-                icon.className = "fas fa-volume-xmark text-base text-red-400";
+            if (!audioEnabled) {
+                document.getElementById('audioPrompt').classList.add('active');
             } else {
-                icon.className = "fas fa-volume-up text-base text-emerald-400";
-                playAlertSound(true);
+                audioEnabled = false;
+                document.getElementById('audioIcon').className = 'fas fa-volume-mute';
             }
         }
 
-        /* ============================================================
-           MODALS & UTILITIES
-           ============================================================ */
-        function toggleListModal() {
-            const modal = document.getElementById('modal-list');
-            if (modal.classList.contains('hidden')) {
-                modal.classList.remove('hidden');
-                setTimeout(() => {
-                    modal.classList.remove('opacity-0');
-                }, 10);
-            } else {
-                modal.classList.add('opacity-0');
-                setTimeout(() => {
-                    modal.classList.add('hidden');
-                }, 200);
+        function playAlertSound() {
+            if (!audioEnabled || !audioSynth) return;
+            try {
+                const now = Tone.now();
+                audioSynth.triggerAttackRelease("A5", "8n", now);
+                audioSynth.triggerAttackRelease("E6", "8n", now + 0.15);
+            } catch (e) {
+                console.error("Errore riproduzione suono:", e);
             }
-        }
-
-        function openGpsHelpModal() {
-            const modal = document.getElementById('modal-gps-help');
-            modal.classList.remove('hidden');
-            setTimeout(() => {
-                modal.classList.remove('opacity-0');
-            }, 10);
-        }
-
-        function closeGpsHelpModal() {
-            const modal = document.getElementById('modal-gps-help');
-            modal.classList.add('opacity-0');
-            setTimeout(() => {
-                modal.classList.add('hidden');
-            }, 200);
-        }
-
-        function setDistanceFilter(km) {
-            selectedDistanceFilter = km;
-            document.getElementById('radius-val').innerText = km === 0 ? "Tutti i controlli" : `Entro ${km} km`;
-            
-            const buttons = document.querySelectorAll('.dist-filter-btn');
-            buttons.forEach(btn => {
-                if ((km === 0 && btn.innerText === 'Tutti') || btn.innerText === `${km} km`) {
-                    btn.classList.add('bg-accent', 'border-accent', 'text-white');
-                    btn.classList.remove('bg-slate-800', 'text-slate-300');
-                } else {
-                    btn.classList.remove('bg-accent', 'border-accent', 'text-white');
-                    btn.classList.add('bg-slate-800', 'text-slate-300');
-                }
-            });
-
-            renderReports();
-        }
-
-        function toggleMapTheme() {
-            const mapContainer = document.getElementById('map');
-            const themeIcon = document.getElementById('theme-icon');
-            isDarkMode = !isDarkMode;
-
-            if (isDarkMode) {
-                mapContainer.classList.add('dark-tiles');
-                themeIcon.className = "fas fa-moon text-lg text-yellow-400";
-            } else {
-                mapContainer.classList.remove('dark-tiles');
-                themeIcon.className = "fas fa-sun text-lg text-amber-500";
-            }
-        }
-
-        function calculateDistance(lat1, lon1, lat2, lon2) {
-            const R = 6371;
-            const dLat = deg2rad(lat2 - lat1);
-            const dLon = deg2rad(lon2 - lon1);
-            const a =
-                Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-                Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
-                Math.sin(dLon / 2) * Math.sin(dLon / 2);
-            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-            return R * c;
-        }
-
-        function deg2rad(deg) {
-            return deg * (Math.PI / 180);
-        }
-
-        function formatDistance(distKm) {
-            if (distKm < 1) {
-                return `${Math.round(distKm * 1000)} m`;
-            }
-            return `${distKm.toFixed(1)} km`;
         }
     </script>
 </body>
