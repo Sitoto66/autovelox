@@ -3,20 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>VeloxAlert - Segnalazione Controlli Velocità</title>
+    <title>VeloxAlert S24 Ultra - Controlli Velocità</title>
     
-    <!-- Leaflet CSS (Open Source - No API Key Needed) -->
+    <!-- Leaflet CSS (Mappe) -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <!-- FontAwesome per Icone -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
-    <!-- Tone.js per Allarmi Sonori Sintetizzati -->
+    <!-- Tone.js per Sintesi Audio -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
 
     <style>
         :root {
-            --bg-dark: #121824;
-            --card-bg: rgba(26, 34, 52, 0.92);
-            --accent-blue: #2563eb;
+            --bg-dark: #0a0f1d;
+            --card-bg: rgba(18, 25, 41, 0.94);
+            --accent-blue: #3b82f6;
             --accent-red: #ef4444;
             --accent-green: #10b981;
             --accent-amber: #f59e0b;
@@ -60,7 +60,7 @@
             background: #0f172a;
         }
 
-        /* BARRA SUPERIORE DI STATO ED INFO */
+        /* BARRA SUPERIORE */
         .top-bar {
             position: absolute;
             top: calc(12px + var(--safe-area-top));
@@ -79,8 +79,8 @@
 
         .status-badge {
             background: var(--card-bg);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
             padding: 8px 14px;
             border-radius: 30px;
             display: flex;
@@ -88,7 +88,7 @@
             gap: 8px;
             font-size: 13px;
             font-weight: 600;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
             cursor: pointer;
         }
 
@@ -117,28 +117,29 @@
             100% { transform: scale(0.95); opacity: 0.8; }
         }
 
+        /* TACHIMETRO HUD */
         .speedometer-card {
             background: var(--card-bg);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
             padding: 6px 14px;
             border-radius: 20px;
             display: flex;
             align-items: baseline;
             gap: 4px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
         }
 
         .speed-val {
-            font-size: 24px;
-            font-weight: 800;
+            font-size: 26px;
+            font-weight: 900;
             color: #fff;
             font-family: monospace;
         }
 
         .speed-unit {
             font-size: 10px;
-            font-weight: 600;
+            font-weight: 700;
             color: var(--text-sub);
         }
 
@@ -148,27 +149,51 @@
         }
 
         .btn-icon {
-            width: 42px;
-            height: 42px;
+            width: 44px;
+            height: 44px;
             border-radius: 50%;
             background: var(--card-bg);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
             color: var(--text-main);
             display: flex;
             justify-content: center;
             align-items: center;
             font-size: 16px;
             cursor: pointer;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
             transition: all 0.2s ease;
+        }
+
+        .btn-icon.active {
+            color: var(--accent-green);
+            border-color: var(--accent-green);
+            box-shadow: 0 0 12px rgba(16, 185, 129, 0.4);
         }
 
         .btn-icon:active {
             transform: scale(0.92);
         }
 
-        /* NOTIFICA AVVISO PROSSIMITÀ */
+        /* BANNER DI SBLOCCO AUDIO */
+        .audio-unlock-banner {
+            position: absolute;
+            top: calc(70px + var(--safe-area-top));
+            left: 12px;
+            right: 12px;
+            z-index: 1000;
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
+            color: white;
+            padding: 12px 16px;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 8px 25px rgba(37, 99, 235, 0.5);
+            cursor: pointer;
+        }
+
+        /* BANNER AVVISO PROSSIMITÀ */
         .alert-banner {
             position: absolute;
             top: calc(70px + var(--safe-area-top));
@@ -182,12 +207,22 @@
             display: none;
             align-items: center;
             justify-content: space-between;
-            box-shadow: 0 10px 25px rgba(239, 68, 68, 0.5);
+            box-shadow: 0 10px 30px rgba(239, 68, 68, 0.6);
             animation: bounceIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
 
         .alert-banner.active {
             display: flex;
+        }
+
+        .alert-banner.imminent {
+            background: linear-gradient(135deg, #b91c1c, #991b1b);
+            animation: pulse-danger 0.6s infinite alternate;
+        }
+
+        @keyframes pulse-danger {
+            from { transform: scale(1); box-shadow: 0 0 20px rgba(239, 68, 68, 0.8); }
+            to { transform: scale(1.02); box-shadow: 0 0 35px rgba(239, 68, 68, 1); }
         }
 
         .alert-info {
@@ -197,13 +232,14 @@
         }
 
         .alert-icon {
-            font-size: 24px;
+            font-size: 26px;
             animation: blink 0.8s infinite alternate;
         }
 
         .alert-text-title {
-            font-weight: 700;
+            font-weight: 800;
             font-size: 15px;
+            letter-spacing: 0.5px;
         }
 
         .alert-text-sub {
@@ -221,7 +257,7 @@
             to { transform: translateY(0); opacity: 1; }
         }
 
-        /* CONTROLLI SUL LATO DESTRO DELLA MAPPA */
+        /* CONTROLLI DESTRI MAPPA */
         .map-controls-right {
             position: absolute;
             right: 12px;
@@ -237,7 +273,7 @@
             height: 48px;
             border-radius: 50%;
             background: var(--card-bg);
-            backdrop-filter: blur(10px);
+            backdrop-filter: blur(12px);
             border: 1px solid rgba(255, 255, 255, 0.15);
             color: white;
             display: flex;
@@ -255,7 +291,7 @@
             box-shadow: 0 0 15px rgba(37, 99, 235, 0.6);
         }
 
-        /* PANNELLO SEGNALAZIONI IN BASSO */
+        /* PANNELLO SEGNALAZIONI RAPIDE */
         .bottom-panel {
             position: absolute;
             bottom: calc(12px + var(--safe-area-bottom));
@@ -279,7 +315,7 @@
         }
 
         .panel-title {
-            font-size: 13px;
+            font-size: 12px;
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.8px;
@@ -312,16 +348,8 @@
             background: rgba(255, 255, 255, 0.12);
         }
 
-        .btn-report i {
-            font-size: 20px;
-        }
-
-        .btn-report span {
-            font-size: 10px;
-            font-weight: 600;
-            text-align: center;
-            white-space: nowrap;
-        }
+        .btn-report i { font-size: 20px; }
+        .btn-report span { font-size: 10px; font-weight: 600; text-align: center; white-space: nowrap; }
 
         .btn-report.fisso i { color: #f43f5e; }
         .btn-report.pattuglia i { color: #3b82f6; }
@@ -329,7 +357,7 @@
         .btn-report.etilometro i { color: #f59e0b; }
         .btn-report.semaforo i { color: #10b981; }
 
-        /* MODALE GESTIONE SEGNALAZIONI */
+        /* MODALE & GESTIONE SEGNALAZIONI */
         .modal {
             position: fixed;
             inset: 0;
@@ -370,10 +398,7 @@
             border-bottom: 1px solid rgba(255, 255, 255, 0.08);
         }
 
-        .modal-title {
-            font-size: 18px;
-            font-weight: 700;
-        }
+        .modal-title { font-size: 18px; font-weight: 700; }
 
         .btn-close {
             background: rgba(255,255,255,0.1);
@@ -422,16 +447,8 @@
             font-size: 18px;
         }
 
-        .report-item-title {
-            font-weight: 600;
-            font-size: 14px;
-            margin-bottom: 2px;
-        }
-
-        .report-item-sub {
-            font-size: 11px;
-            color: var(--text-sub);
-        }
+        .report-item-title { font-weight: 600; font-size: 14px; margin-bottom: 2px; }
+        .report-item-sub { font-size: 11px; color: var(--text-sub); }
 
         .btn-delete-report {
             background: rgba(239, 68, 68, 0.2);
@@ -442,13 +459,28 @@
             font-size: 12px;
             font-weight: 600;
             cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 6px;
         }
 
-        .btn-delete-report:active {
-            background: rgba(239, 68, 68, 0.4);
+        .backup-actions {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .btn-secondary {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: white;
+            padding: 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
         }
 
         .btn-clear-all {
@@ -465,10 +497,9 @@
             align-items: center;
             justify-content: center;
             gap: 8px;
-            box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
         }
 
-        /* CUSTOM LEAFLET POPUP STYLE */
+        /* CUSTOM LEAFLET POPUP */
         .leaflet-popup-content-wrapper {
             background: #1e293b !important;
             color: #f8fafc !important;
@@ -478,64 +509,12 @@
             border: 1px solid rgba(255,255,255,0.1) !important;
         }
 
-        .leaflet-popup-tip {
-            background: #1e293b !important;
-        }
+        .leaflet-popup-tip { background: #1e293b !important; }
 
-        .popup-card {
-            padding: 8px;
-            text-align: center;
-            min-width: 180px;
-        }
-
-        .popup-title {
-            font-weight: 700;
-            font-size: 15px;
-            margin-bottom: 4px;
-        }
-
-        .popup-time {
-            font-size: 11px;
-            color: #94a3b8;
-            margin-bottom: 12px;
-        }
-
-        .popup-actions {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-        }
-
-        .popup-vote-box {
-            display: flex;
-            gap: 6px;
-        }
-
-        .btn-popup-vote {
-            flex: 1;
-            padding: 6px;
-            border-radius: 8px;
-            border: none;
-            font-size: 11px;
-            font-weight: 600;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 4px;
-        }
-
-        .btn-popup-vote.yes {
-            background: rgba(16, 185, 129, 0.2);
-            color: #34d399;
-            border: 1px solid rgba(16, 185, 129, 0.3);
-        }
-
-        .btn-popup-vote.no {
-            background: rgba(245, 158, 11, 0.2);
-            color: #fbbf24;
-            border: 1px solid rgba(245, 158, 11, 0.3);
-        }
+        .popup-card { padding: 8px; text-align: center; min-width: 180px; }
+        .popup-title { font-weight: 700; font-size: 15px; margin-bottom: 4px; }
+        .popup-time { font-size: 11px; color: #94a3b8; margin-bottom: 12px; }
+        .popup-actions { display: flex; flex-direction: column; gap: 6px; }
 
         .btn-popup-delete {
             width: 100%;
@@ -547,41 +526,6 @@
             font-size: 11px;
             font-weight: 700;
             cursor: pointer;
-            margin-top: 4px;
-        }
-
-        /* PROMPT ATTIVAZIONE AUDIO SINTETIZZATORE */
-        .audio-prompt {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            z-index: 2500;
-            background: rgba(15, 23, 42, 0.95);
-            border: 1px solid rgba(255,255,255,0.2);
-            border-radius: 20px;
-            padding: 24px;
-            text-align: center;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
-            display: none;
-            flex-direction: column;
-            align-items: center;
-            gap: 12px;
-            max-width: 280px;
-        }
-
-        .audio-prompt.active {
-            display: flex;
-        }
-
-        .btn-enable-audio {
-            background: var(--accent-blue);
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 12px;
-            font-weight: 700;
-            cursor: pointer;
         }
     </style>
 </head>
@@ -590,7 +534,7 @@
     <div id="app-container">
         <!-- BARRA SUPERIORE -->
         <div class="top-bar">
-            <div class="status-badge" id="statusBadge" onclick="requestGPSPosition()">
+            <div class="status-badge" id="statusBadge" onclick="startGPSWatch()">
                 <div class="status-dot" id="statusDot"></div>
                 <span id="statusText">Ricerca GPS...</span>
             </div>
@@ -601,7 +545,10 @@
             </div>
 
             <div class="top-actions">
-                <button class="btn-icon" id="btnAudio" onclick="toggleAudio()" title="Audio Allarmi">
+                <button class="btn-icon active" id="btnWakeLock" onclick="toggleWakeLock()" title="Schermo Sempre Attivo">
+                    <i class="fas fa-sun"></i>
+                </button>
+                <button class="btn-icon" id="btnAudio" onclick="toggleAudioManual()" title="Audio Allarmi">
                     <i class="fas fa-volume-up" id="audioIcon"></i>
                 </button>
                 <button class="btn-icon" onclick="openManagerModal()" title="Gestisci Segnalazioni">
@@ -610,7 +557,19 @@
             </div>
         </div>
 
-        <!-- ALLERTA PROSSIMITÀ -->
+        <!-- BANNER PER SBLOCCO AUDIO AUTOMATICO (VISIBILE SOLO SE AUDIO BLOCCATO) -->
+        <div class="audio-unlock-banner" id="audioUnlockBanner" onclick="unlockAudioSystem()">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <i class="fas fa-volume-high" style="font-size: 20px;"></i>
+                <div>
+                    <div style="font-weight: 700; font-size: 13px;">Tocca per Attivare gli Avvisi Sonori</div>
+                    <div style="font-size: 10px; opacity: 0.9;">Sblocca la riproduzione audio del browser</div>
+                </div>
+            </div>
+            <i class="fas fa-chevron-right"></i>
+        </div>
+
+        <!-- BANNER PROSSIMITÀ VELOX (Danger) -->
         <div class="alert-banner" id="alertBanner">
             <div class="alert-info">
                 <i class="fas fa-triangle-exclamation alert-icon"></i>
@@ -621,7 +580,7 @@
             </div>
         </div>
 
-        <!-- CONTROLLI MAPPA -->
+        <!-- CONTROLLI DESTRI MAPPA -->
         <div class="map-controls-right">
             <button class="btn-control active" id="btnAutoFollow" onclick="toggleAutoFollow()" title="Insegui Posizione">
                 <i class="fas fa-crosshairs"></i>
@@ -637,7 +596,7 @@
         <!-- PANNELLO SEGNALAZIONI RAPIDE -->
         <div class="bottom-panel">
             <div class="panel-header">
-                <span class="panel-title">SEGNALA IN QUESTA POSIZIONE</span>
+                <span class="panel-title">SEGNALA NELLA POSIZIONE CORRENTE</span>
                 <span class="panel-title" style="color: var(--accent-blue);" id="reportCountBadge">0 Attive</span>
             </div>
             <div class="report-grid">
@@ -665,7 +624,7 @@
         </div>
     </div>
 
-    <!-- MODALE GESTIONE E RIMOZIONE SEGNALAZIONI -->
+    <!-- MODALE GESTIONE E BACKUP SEGNALAZIONI -->
     <div class="modal" id="managerModal">
         <div class="modal-content">
             <div class="modal-header">
@@ -674,8 +633,18 @@
             </div>
             
             <p style="font-size: 12px; color: var(--text-sub); margin-bottom: 12px;">
-                Puoi rimuovere individualmente qualsiasi segnalazione presente sulla mappa o svuotare l'intero database locale.
+                I dati sono salvati in <strong>IndexedDB (memoria protetta)</strong>. Utilizza il backup JSON per trasferirli su altri telefoni.
             </p>
+
+            <div class="backup-actions">
+                <button class="btn-secondary" onclick="exportBackupJSON()">
+                    <i class="fas fa-download"></i> Esporta Backup
+                </button>
+                <button class="btn-secondary" onclick="document.getElementById('importFileInput').click()">
+                    <i class="fas fa-upload"></i> Importa Backup
+                </button>
+                <input type="file" id="importFileInput" accept=".json" style="display:none;" onchange="importBackupJSON(event)">
+            </div>
 
             <div class="reports-list" id="reportsListContainer">
                 <!-- Inserito dinamicamente tramite JS -->
@@ -687,18 +656,11 @@
         </div>
     </div>
 
-    <!-- PROMPT ATTIVAZIONE AUDIO -->
-    <div class="audio-prompt" id="audioPrompt">
-        <i class="fas fa-volume-high" style="font-size: 32px; color: var(--accent-blue);"></i>
-        <div style="font-weight: 700;">Attiva Avvisi Sonori</div>
-        <div style="font-size: 12px; color: #94a3b8;">Sblocca l'audio del tuo browser per ascoltare i segnali acustici di avvicinamento ai controlli.</div>
-        <button class="btn-enable-audio" onclick="enableAudioContext()">ATTIVA AUDIO</button>
-    </div>
-
-    <!-- Leaflet JS (Open Source - No API Key Needed) -->
+    <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
     <script>
+        /* CONFIGURAZIONE TIPI SEGNALAZIONI */
         const REPORT_TYPES = {
             fisso: { label: 'Autovelox Fisso', icon: 'fa-camera', color: '#f43f5e' },
             pattuglia: { label: 'Pattuglia Mobile', icon: 'fa-car-side', color: '#3b82f6' },
@@ -711,66 +673,257 @@
         let map;
         let userMarker;
         let userAccuracyCircle;
-        let userPos = { lat: 41.9028, lng: 12.4964 }; // Roma default
+        let userPos = { lat: 41.9028, lng: 12.4964 };
         let hasGpsFix = false;
         let autoFollow = true;
-        let audioEnabled = false;
-        let audioSynth = null;
+        
+        // Gestione Audio
+        let audioUnlocked = false;
+        let audioAudioCtx = null;
+        let toneSynth = null;
+        
+        // Gestione Wake Lock (Schermo Sempre Acceso)
+        let wakeLockObj = null;
+
+        // Dati e Markers
         let reports = [];
         let reportMarkers = {};
         let activeAlertId = null;
+        let lastAlertZone = 0; // 0: nessuno, 1: pre-allarme (500m), 2: imminente (150m)
 
-        // Inizializzazione
-        window.addEventListener('DOMContentLoaded', () => {
+        // Database IndexedDB
+        let db = null;
+
+        // Inizializzazione Applicazione
+        window.addEventListener('DOMContentLoaded', async () => {
+            initIndexedDB();
+            requestStoragePersistence();
             initMap();
-            loadReportsFromStorage();
             startGPSWatch();
-            setupToneAudio();
+            requestWakeLock();
+
+            // Sblocco Audio automatico al primo tocco in qualsiasi punto della pagina
+            document.addEventListener('click', unlockAudioSystem, { once: false });
+            document.addEventListener('touchstart', unlockAudioSystem, { once: false });
         });
 
-        /* INIZIALIZZAZIONE MAPPA LEAFLET (SENZA API KEY) */
-        function initMap() {
-            map = L.map('map', {
-                zoomControl: false,
-                attributionControl: false
-            }).setView([userPos.lat, userPos.lng], 15);
+        /* ==========================================================================
+           1. INDEXEDDB & PERSISTENZA DATI (PROTEZIONE DA CANCELLAZIONE CACHE)
+           ========================================================================== */
+        function initIndexedDB() {
+            const request = indexedDB.open('VeloxAlertDB', 1);
 
-            // Mappa OpenStreetMap Voyager (Totalmente Gratuita, No API Key Required)
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                maxZoom: 19,
-                subdomains: 'abc'
+            request.onupgradeneeded = (e) => {
+                db = e.target.result;
+                if (!db.objectStoreNames.contains('reports')) {
+                    db.createObjectStore('reports', { keyPath: 'id' });
+                }
+            };
+
+            request.onsuccess = (e) => {
+                db = e.target.result;
+                loadReportsFromDB();
+            };
+
+            request.onerror = (e) => {
+                console.error("Errore IndexedDB:", e);
+                // Fallback su LocalStorage
+                loadReportsFromStorageFallback();
+            };
+        }
+
+        async function requestStoragePersistence() {
+            if (navigator.storage && navigator.storage.persist) {
+                const isPersisted = await navigator.storage.persist();
+                console.log(`Storage Persistente attivo: ${isPersisted}`);
+            }
+        }
+
+        function saveReportToDB(report) {
+            if (!db) return;
+            const tx = db.transaction('reports', 'readwrite');
+            const store = tx.objectStore('reports');
+            store.put(report);
+        }
+
+        function removeReportFromDB(id) {
+            if (!db) return;
+            const tx = db.transaction('reports', 'readwrite');
+            const store = tx.objectStore('reports');
+            store.delete(id);
+        }
+
+        function loadReportsFromDB() {
+            if (!db) return;
+            const tx = db.transaction('reports', 'readonly');
+            const store = tx.objectStore('reports');
+            const request = store.getAll();
+
+            request.onsuccess = () => {
+                reports = request.result || [];
+                reports.forEach(report => renderReportMarker(report));
+                updateReportCountBadge();
+            };
+        }
+
+        function loadReportsFromStorageFallback() {
+            const stored = localStorage.getItem('velox_alert_reports');
+            if (stored) {
+                try {
+                    reports = JSON.parse(stored);
+                    reports.forEach(report => renderReportMarker(report));
+                    updateReportCountBadge();
+                } catch (e) { reports = []; }
+            }
+        }
+
+        /* ==========================================================================
+           2. WAKE LOCK API (SCHERMO SEMPRE ACCESO SUL S24 ULTRA)
+           ========================================================================== */
+        async function requestWakeLock() {
+            try {
+                if ('wakeLock' in navigator) {
+                    wakeLockObj = await navigator.wakeLock.request('screen');
+                    document.getElementById('btnWakeLock').classList.add('active');
+
+                    wakeLockObj.addEventListener('release', () => {
+                        document.getElementById('btnWakeLock').classList.remove('active');
+                    });
+                }
+            } catch (err) {
+                console.warn(`Wake Lock non attivo: ${err.message}`);
+                document.getElementById('btnWakeLock').classList.remove('active');
+            }
+        }
+
+        function toggleWakeLock() {
+            if (wakeLockObj !== null) {
+                wakeLockObj.release();
+                wakeLockObj = null;
+            } else {
+                requestWakeLock();
+            }
+        }
+
+        // Riattiva il Wake Lock se si torna all'app dopo un cambio scheda/app
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                requestWakeLock();
+            }
+        });
+
+        /* ==========================================================================
+           3. SISTEMA AUDIO DOPPIO & SBLOCCO AUTOMATICO
+           ========================================================================== */
+        function unlockAudioSystem() {
+            if (audioUnlocked) return;
+
+            // 1. Inizializza AudioContext Nativo Web Audio API
+            try {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                audioAudioCtx = new AudioContext();
+                if (audioAudioCtx.state === 'suspended') {
+                    audioAudioCtx.resume();
+                }
+            } catch (e) { console.warn(e); }
+
+            // 2. Inizializza Tone.js Synth
+            try {
+                Tone.start();
+                toneSynth = new Tone.Synth({
+                    oscillator: { type: 'sine' },
+                    envelope: { attack: 0.001, decay: 0.1, sustain: 0.1, release: 0.5 }
+                }).toDestination();
+            } catch (e) { console.warn(e); }
+
+            audioUnlocked = true;
+            document.getElementById('audioUnlockBanner').style.display = 'none';
+            document.getElementById('audioIcon').className = 'fas fa-volume-up';
+        }
+
+        function toggleAudioManual() {
+            if (!audioUnlocked) {
+                unlockAudioSystem();
+            } else {
+                audioUnlocked = false;
+                document.getElementById('audioUnlockBanner').style.display = 'flex';
+                document.getElementById('audioIcon').className = 'fas fa-volume-mute';
+            }
+        }
+
+        // Riproduce un bip sonoro garantito anche in fallback
+        function playBeepSound(type = 'warning') {
+            if (!audioUnlocked) return;
+
+            // Feedback aptico (vibrazione)
+            if (navigator.vibrate) {
+                if (type === 'imminent') navigator.vibrate([150, 80, 150, 80, 200]);
+                else navigator.vibrate([100, 50, 100]);
+            }
+
+            // Tentativo 1: Tone.js
+            try {
+                if (toneSynth) {
+                    const now = Tone.now();
+                    if (type === 'imminent') {
+                        toneSynth.triggerAttackRelease("E6", "16n", now);
+                        toneSynth.triggerAttackRelease("E6", "16n", now + 0.12);
+                        toneSynth.triggerAttackRelease("E6", "16n", now + 0.24);
+                    } else {
+                        toneSynth.triggerAttackRelease("A5", "8n", now);
+                        toneSynth.triggerAttackRelease("C6", "8n", now + 0.15);
+                    }
+                    return;
+                }
+            } catch (e) {}
+
+            // Tentativo 2 (Fallback Nativo Web Audio API)
+            try {
+                if (audioAudioCtx) {
+                    const osc = audioAudioCtx.createOscillator();
+                    const gain = audioAudioCtx.createGain();
+                    osc.connect(gain);
+                    gain.connect(audioAudioCtx.destination);
+
+                    const freq = type === 'imminent' ? 1760 : 880;
+                    osc.frequency.setValueAtTime(freq, audioAudioCtx.currentTime);
+                    gain.gain.setValueAtTime(0.3, audioAudioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, audioAudioCtx.currentTime + 0.3);
+
+                    osc.start();
+                    osc.stop(audioAudioCtx.currentTime + 0.3);
+                }
+            } catch (e) {}
+        }
+
+        /* ==========================================================================
+           4. INIZIALIZZAZIONE MAPPA E GPS TRACCIAMENTO
+           ========================================================================== */
+        function initMap() {
+            map = L.map('map', { zoomControl: false, attributionControl: false }).setView([userPos.lat, userPos.lng], 15);
+
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+                maxZoom: 19, subdomains: 'abcd'
             }).addTo(map);
 
-            // Icona Custom Posizione Utente
             const userIcon = L.divIcon({
                 className: 'custom-user-icon',
                 html: `<div style="
-                    width: 22px;
-                    height: 22px;
-                    background: #2563eb;
-                    border: 3px solid #ffffff;
-                    border-radius: 50%;
-                    box-shadow: 0 0 15px rgba(37,99,235,0.8);
+                    width: 22px; height: 22px; background: #2563eb;
+                    border: 3px solid #ffffff; border-radius: 50%;
+                    box-shadow: 0 0 15px rgba(37,99,235,0.9);
                 "></div>`,
-                iconSize: [22, 22],
-                iconAnchor: [11, 11]
+                iconSize: [22, 22], iconAnchor: [11, 11]
             });
 
             userMarker = L.marker([userPos.lat, userPos.lng], { icon: userIcon, zIndexOffset: 1000 }).addTo(map);
             userAccuracyCircle = L.circle([userPos.lat, userPos.lng], {
-                radius: 30,
-                color: '#2563eb',
-                fillColor: '#3b82f6',
-                fillOpacity: 0.15,
-                weight: 1
+                radius: 30, color: '#2563eb', fillColor: '#3b82f6', fillOpacity: 0.15, weight: 1
             }).addTo(map);
 
-            map.on('dragstart', () => {
-                setAutoFollow(false);
-            });
+            map.on('dragstart', () => setAutoFollow(false));
         }
 
-        /* TRACCIAMENTO GPS CONTINUO */
         function startGPSWatch() {
             if (!("geolocation" in navigator)) {
                 updateStatus('no-gps', 'GPS Non Supportato');
@@ -779,19 +932,10 @@
 
             updateStatus('loading', 'Ricerca Satellite...');
 
-            const geoOptions = {
-                enableHighAccuracy: true,
-                timeout: 15000,
-                maximumAge: 0
-            };
-
             navigator.geolocation.watchPosition(
                 (pos) => {
                     hasGpsFix = true;
-                    userPos = {
-                        lat: pos.coords.latitude,
-                        lng: pos.coords.longitude
-                    };
+                    userPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
 
                     let speed = 0;
                     if (pos.coords.speed !== null && pos.coords.speed !== undefined && !isNaN(pos.coords.speed)) {
@@ -801,97 +945,64 @@
 
                     userMarker.setLatLng([userPos.lat, userPos.lng]);
                     userAccuracyCircle.setLatLng([userPos.lat, userPos.lng]);
-                    if (pos.coords.accuracy) {
-                        userAccuracyCircle.setRadius(pos.coords.accuracy);
-                    }
+                    if (pos.coords.accuracy) userAccuracyCircle.setRadius(pos.coords.accuracy);
 
-                    if (autoFollow) {
-                        map.panTo([userPos.lat, userPos.lng], { animate: true });
-                    }
+                    if (autoFollow) map.panTo([userPos.lat, userPos.lng], { animate: true });
 
                     updateStatus('active', 'GPS Attivo');
                     checkProximityAlerts();
                 },
                 (err) => {
-                    console.warn("Errore acquisizione GPS:", err);
-                    if (!hasGpsFix) {
-                        updateStatus('error', 'GPS Assente - Tocca x Riprovare');
-                    }
+                    if (!hasGpsFix) updateStatus('error', 'GPS Assente - Tocca x Riprovare');
                 },
-                geoOptions
+                { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
             );
-        }
-
-        function requestGPSPosition() {
-            startGPSWatch();
         }
 
         function updateStatus(type, text) {
             const dot = document.getElementById('statusDot');
             const label = document.getElementById('statusText');
-
             dot.className = 'status-dot';
-            if (type === 'active') {
-                dot.classList.add('active');
-            } else if (type === 'error' || type === 'no-gps') {
-                dot.classList.add('error');
-            }
-
+            if (type === 'active') dot.classList.add('active');
+            else if (type === 'error' || type === 'no-gps') dot.classList.add('error');
             label.innerText = text;
         }
 
-        /* GESTIONE SEGNALAZIONI & RIMOZIONE */
+        /* ==========================================================================
+           5. GESTIONE SEGNALAZIONI & ALLARMI PROSSIMITÀ
+           ========================================================================== */
         function addReport(type) {
             if (!REPORT_TYPES[type]) return;
-
-            if (navigator.vibrate) navigator.vibrate([80, 50, 80]);
+            unlockAudioSystem();
 
             const report = {
                 id: 'rep_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
                 type: type,
                 lat: userPos.lat,
                 lng: userPos.lng,
-                timestamp: new Date().toISOString(),
-                confirmations: 1,
-                rejections: 0
+                timestamp: new Date().toISOString()
             };
 
             reports.push(report);
-            saveReportsToStorage();
+            saveReportToDB(report);
             renderReportMarker(report);
             updateReportCountBadge();
 
-            if (autoFollow) {
-                map.panTo([report.lat, report.lng]);
-            }
+            if (autoFollow) map.panTo([report.lat, report.lng]);
         }
 
         function renderReportMarker(report) {
             const config = REPORT_TYPES[report.type] || REPORT_TYPES.fisso;
 
-            const markerHtml = `
-                <div style="
-                    width: 36px;
-                    height: 36px;
-                    background: ${config.color};
-                    border: 2px solid #ffffff;
-                    border-radius: 50%;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    color: white;
-                    font-size: 16px;
-                    box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-                ">
-                    <i class="fas ${config.icon}"></i>
-                </div>
-            `;
-
             const icon = L.divIcon({
                 className: 'custom-report-icon',
-                html: markerHtml,
-                iconSize: [36, 36],
-                iconAnchor: [18, 18]
+                html: `<div style="
+                    width: 36px; height: 36px; background: ${config.color};
+                    border: 2px solid #ffffff; border-radius: 50%;
+                    display: flex; align-items: center; justify-content: center;
+                    color: white; font-size: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+                "><i class="fas ${config.icon}"></i></div>`,
+                iconSize: [36, 36], iconAnchor: [18, 18]
             });
 
             const marker = L.marker([report.lat, report.lng], { icon: icon }).addTo(map);
@@ -900,18 +1011,10 @@
             popupContent.className = 'popup-card';
             popupContent.innerHTML = `
                 <div class="popup-title">${config.label}</div>
-                <div class="popup-time">Segnalato: ${new Date(report.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
+                <div class="popup-time">Ora: ${new Date(report.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
                 <div class="popup-actions">
-                    <div class="popup-vote-box">
-                        <button class="btn-popup-vote yes" onclick="voteReport('${report.id}', true)">
-                            <i class="fas fa-thumbs-up"></i> C'è (${report.confirmations})
-                        </button>
-                        <button class="btn-popup-vote no" onclick="voteReport('${report.id}', false)">
-                            <i class="fas fa-thumbs-down"></i> Non c'è
-                        </button>
-                    </div>
                     <button class="btn-popup-delete" onclick="deleteReport('${report.id}')">
-                        <i class="fas fa-trash-alt"></i> Rimuovi Ora
+                        <i class="fas fa-trash-alt"></i> Elimina Ora
                     </button>
                 </div>
             `;
@@ -920,7 +1023,6 @@
             reportMarkers[report.id] = marker;
         }
 
-        /* FUNZIONE DI RIMOZIONE SEGNALAZIONE */
         function deleteReport(id) {
             if (reportMarkers[id]) {
                 map.removeLayer(reportMarkers[id]);
@@ -928,76 +1030,31 @@
             }
 
             reports = reports.filter(r => r.id !== id);
-            saveReportsToStorage();
+            removeReportFromDB(id);
 
             updateReportCountBadge();
             renderReportsListInModal();
             checkProximityAlerts();
-
-            if (navigator.vibrate) navigator.vibrate(50);
-        }
-
-        function voteReport(id, isPositive) {
-            const report = reports.find(r => r.id === id);
-            if (!report) return;
-
-            if (isPositive) {
-                report.confirmations++;
-            } else {
-                report.rejections++;
-                if (report.rejections >= 2 || (report.rejections - report.confirmations) >= 1) {
-                    deleteReport(id);
-                    return;
-                }
-            }
-
-            saveReportsToStorage();
-            if (reportMarkers[id]) {
-                reportMarkers[id].closePopup();
-            }
         }
 
         function clearAllReports() {
             if (reports.length === 0) return;
+            if (confirm("Cancellare TUTTE le segnalazioni dalla mappa?")) {
+                Object.keys(reportMarkers).forEach(id => map.removeLayer(reportMarkers[id]));
+                reportMarkers = {};
+                reports.forEach(r => removeReportFromDB(r.id));
+                reports = [];
 
-            Object.keys(reportMarkers).forEach(id => {
-                map.removeLayer(reportMarkers[id]);
-            });
-            reportMarkers = {};
-            reports = [];
-
-            saveReportsToStorage();
-            updateReportCountBadge();
-            renderReportsListInModal();
-            checkProximityAlerts();
-        }
-
-        function saveReportsToStorage() {
-            localStorage.setItem('velox_alert_reports', JSON.stringify(reports));
-        }
-
-        function loadReportsFromStorage() {
-            const stored = localStorage.getItem('velox_alert_reports');
-            if (stored) {
-                try {
-                    reports = JSON.parse(stored);
-                    reports.forEach(report => renderReportMarker(report));
-                    updateReportCountBadge();
-                } catch (e) {
-                    console.error("Errore caricamento segnalazioni:", e);
-                    reports = [];
-                }
+                updateReportCountBadge();
+                renderReportsListInModal();
+                checkProximityAlerts();
             }
         }
 
-        function updateReportCountBadge() {
-            document.getElementById('reportCountBadge').innerText = `${reports.length} Attive`;
-        }
-
-        /* ALLERTA E AVVISI ACUSTICI */
         function checkProximityAlerts() {
             if (reports.length === 0) {
                 hideAlert();
+                lastAlertZone = 0;
                 return;
             }
 
@@ -1012,45 +1069,90 @@
                 }
             });
 
-            if (minDistance <= 500 && nearestReport) {
+            if (nearestReport && minDistance <= 500) {
                 const config = REPORT_TYPES[nearestReport.type] || REPORT_TYPES.fisso;
-                showAlert(config.label, `A circa ${Math.round(minDistance)} metri dalla tua posizione`);
-                
-                if (activeAlertId !== nearestReport.id) {
-                    activeAlertId = nearestReport.id;
-                    playAlertSound();
+
+                if (minDistance <= 150) {
+                    showAlert(config.label, `IMMINENTE: a soli ${Math.round(minDistance)} metri!`, true);
+                    if (lastAlertZone !== 2) {
+                        lastAlertZone = 2;
+                        playBeepSound('imminent');
+                    }
+                } else {
+                    showAlert(config.label, `In avvicinamento: a circa ${Math.round(minDistance)} metri`, false);
+                    if (lastAlertZone !== 1) {
+                        lastAlertZone = 1;
+                        playBeepSound('warning');
+                    }
                 }
             } else {
                 hideAlert();
-                activeAlertId = null;
+                lastAlertZone = 0;
             }
         }
 
-        function showAlert(title, subtitle) {
+        function showAlert(title, subtitle, isImminent) {
             const banner = document.getElementById('alertBanner');
             document.getElementById('alertTitle').innerText = title.toUpperCase();
             document.getElementById('alertSub').innerText = subtitle;
+
+            if (isImminent) banner.classList.add('imminent');
+            else banner.classList.remove('imminent');
+
             banner.classList.add('active');
         }
 
         function hideAlert() {
-            const banner = document.getElementById('alertBanner');
-            banner.classList.remove('active');
+            document.getElementById('alertBanner').classList.remove('active', 'imminent');
         }
 
         function calculateDistance(lat1, lon1, lat2, lon2) {
             const R = 6371e3;
-            const φ1 = lat1 * Math.PI / 180;
-            const φ2 = lat2 * Math.PI / 180;
-            const Δφ = (lat2 - lat1) * Math.PI / 180;
-            const Δλ = (lon2 - lon1) * Math.PI / 180;
+            const φ1 = lat1 * Math.PI / 180, φ2 = lat2 * Math.PI / 180;
+            const Δφ = (lat2 - lat1) * Math.PI / 180, Δλ = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+            return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        }
 
-            const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-                      Math.cos(φ1) * Math.cos(φ2) *
-                      Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
-            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        /* ==========================================================================
+           6. EXPORT / IMPORT BACKUP JSON
+           ========================================================================== */
+        function exportBackupJSON() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(reports, null, 2));
+            const dlAnchorElem = document.createElement('a');
+            dlAnchorElem.setAttribute("href", dataStr);
+            dlAnchorElem.setAttribute("download", `velox_alert_backup_${new Date().toISOString().slice(0,10)}.json`);
+            dlAnchorElem.click();
+        }
 
-            return R * c;
+        function importBackupJSON(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const imported = JSON.parse(e.target.result);
+                    if (Array.isArray(imported)) {
+                        imported.forEach(rep => {
+                            if (!reports.some(r => r.id === rep.id)) {
+                                reports.push(rep);
+                                saveReportToDB(rep);
+                                renderReportMarker(rep);
+                            }
+                        });
+                        updateReportCountBadge();
+                        renderReportsListInModal();
+                        alert("Backup importato con successo!");
+                    }
+                } catch (err) { alert("File di backup non valido."); }
+            };
+            reader.readAsText(file);
+        }
+
+        /* UI MODALE & UTILITÀ */
+        function updateReportCountBadge() {
+            document.getElementById('reportCountBadge').innerText = `${reports.length} Attive`;
         }
 
         function openManagerModal() {
@@ -1067,7 +1169,7 @@
             container.innerHTML = '';
 
             if (reports.length === 0) {
-                container.innerHTML = `<div style="text-align: center; color: var(--text-sub); padding: 20px 0; font-size: 13px;">Nessuna segnalazione attiva al momento.</div>`;
+                container.innerHTML = `<div style="text-align: center; color: var(--text-sub); padding: 20px 0; font-size: 13px;">Nessuna segnalazione attiva memorizzata.</div>`;
                 return;
             }
 
@@ -1095,63 +1197,16 @@
             });
         }
 
-        function toggleAutoFollow() {
-            setAutoFollow(!autoFollow);
-        }
-
+        function toggleAutoFollow() { setAutoFollow(!autoFollow); }
         function setAutoFollow(val) {
             autoFollow = val;
             const btn = document.getElementById('btnAutoFollow');
             if (autoFollow) {
                 btn.classList.add('active');
                 if (hasGpsFix) map.panTo([userPos.lat, userPos.lng]);
-            } else {
-                btn.classList.remove('active');
-            }
+            } else { btn.classList.remove('active'); }
         }
-
-        function recenterMap() {
-            setAutoFollow(true);
-        }
-
-        function setupToneAudio() {
-            try {
-                audioSynth = new Tone.Synth({
-                    oscillator: { type: 'triangle' },
-                    envelope: { attack: 0.005, decay: 0.1, sustain: 0.3, release: 1 }
-                }).toDestination();
-            } catch (e) {
-                console.warn("Tone.js Audio non inizializzato:", e);
-            }
-        }
-
-        function enableAudioContext() {
-            Tone.start();
-            audioEnabled = true;
-            document.getElementById('audioPrompt').classList.remove('active');
-            document.getElementById('audioIcon').className = 'fas fa-volume-up';
-            playAlertSound();
-        }
-
-        function toggleAudio() {
-            if (!audioEnabled) {
-                document.getElementById('audioPrompt').classList.add('active');
-            } else {
-                audioEnabled = false;
-                document.getElementById('audioIcon').className = 'fas fa-volume-mute';
-            }
-        }
-
-        function playAlertSound() {
-            if (!audioEnabled || !audioSynth) return;
-            try {
-                const now = Tone.now();
-                audioSynth.triggerAttackRelease("A5", "8n", now);
-                audioSynth.triggerAttackRelease("E6", "8n", now + 0.15);
-            } catch (e) {
-                console.error("Errore riproduzione suono:", e);
-            }
-        }
+        function recenterMap() { setAutoFollow(true); }
     </script>
 </body>
 </html>
